@@ -1,0 +1,55 @@
+[workspace]
+members = [".", "statecraft-macros"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["sebkd <sebkd80@gmail.com>"]
+repository = "http://sebkd.fvds.ru/sebkd/statecraft"
+readme = "README.md"
+
+[workspace.dependencies]
+statecraft-macros = { version = "0.1.0", path = "statecraft-macros" }
+
+tokio = { version = "1.52", features = ["sync", "rt", "time", "macros"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+
+[package]
+name = "statecraft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+description = "Ergonomic, compile-time validated async finite state machines for Rust"
+keywords = ["async", "fsm", "state-machine", "proc-macro", "tokio"]
+categories = [
+    "asynchronous",
+    "concurrency",
+    "development-tools::procedural-macro-helpers",
+]
+
+[dependencies]
+statecraft-macros = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]
+serde = ["dep:serde"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
