@@ -1,0 +1,8 @@
+error[E0599]: no variant, associated function, or constant named `Idle` found for enum `RunningCheckNext` in the current scope
+  --> tests/ui/undeclared_target.rs:12:27
+   |
+ 6 | #[fsm(initial = Idle)]
+   | ---------------------- variant, associated function, or constant `Idle` not found for this enum
+...
+12 |         RunningCheckNext::Idle
+   |                           ^^^^ variant, associated function, or constant not found in `RunningCheckNext`

@@ -1,0 +1,5 @@
+error: #[fsm] impl must declare `type Context = ...;`
+ --> tests/ui/missing_context.rs:6:1
+  |
+6 | impl Machine {
+  | ^^^^

@@ -36,3 +36,17 @@
 //! ```
 
 pub use statecraft_macros::fsm;
+
+/// Error returned by a generated `apply` when the current `(state, event)` pair
+/// has no declared handler.
+///
+/// Note that this is distinct from an invalid *target*: because branch targets
+/// are encoded in a generated per-transition enum (see the `#[on(next = [..])]`
+/// form), returning an undeclared target is a compile error, not a runtime
+/// `ApplyError`.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ApplyError {
+    /// No handler is declared for this event in the current state.
+    #[error("no transition declared for this event in the current state")]
+    NoTransition,
+}
