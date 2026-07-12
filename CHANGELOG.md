@@ -13,5 +13,8 @@
   асинхронный `apply`. Для `#[on(next = [..])]` создаётся per-transition
   enum-цель, поэтому возврат необъявленного состояния — ошибка компиляции.
 - `ApplyError::NoTransition` для пары `(state, event)` без хендлера.
+- Fallible-хендлеры: возврат `Result<_, E>` (одиночный и ветвящийся). Тип `E`
+  задаётся `type Error`, ошибка прорастает через `apply` как
+  `ApplyError::Handler`. `ApplyError` стал generic — `ApplyError<E = Infallible>`.
 
 [Unreleased]: http://sebkd.fvds.ru/sebkd/statecraft/compare/main...HEAD

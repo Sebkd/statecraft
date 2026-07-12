@@ -37,16 +37,21 @@
 
 pub use statecraft_macros::fsm;
 
-/// Error returned by a generated `apply` when the current `(state, event)` pair
-/// has no declared handler.
+/// Error returned by a generated `apply`.
 ///
-/// Note that this is distinct from an invalid *target*: because branch targets
-/// are encoded in a generated per-transition enum (see the `#[on(next = [..])]`
-/// form), returning an undeclared target is a compile error, not a runtime
-/// `ApplyError`.
+/// The type parameter `E` is the FSM's declared `type Error` (defaulting to
+/// [`Infallible`](core::convert::Infallible) when no handler is fallible).
+///
+/// Note that an invalid *target* is not representable here: because branch
+/// targets are encoded in a generated per-transition enum (see the
+/// `#[on(next = [..])]` form), returning an undeclared target is a compile
+/// error, not a runtime `ApplyError`.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum ApplyError {
+pub enum ApplyError<E = core::convert::Infallible> {
     /// No handler is declared for this event in the current state.
     #[error("no transition declared for this event in the current state")]
     NoTransition,
+    /// A handler returned an error.
+    #[error(transparent)]
+    Handler(E),
 }
