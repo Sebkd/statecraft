@@ -1,0 +1,12 @@
+error[E0277]: `?` couldn't convert the error to `ApplyError<Boom>`
+  --> tests/ui/error_type_mismatch.rs:12:22
+   |
+12 | #[fsm(initial = Idle)]
+   | ---------------------^
+   | |                    |
+   | |                    the trait `From<ApplyError<Other>>` is not implemented for `ApplyError<Boom>`
+   | this has type `Result<_, Other>`
+   | this can't be annotated with `?` because it has type `Result<_, ApplyError<Other>>`
+   |
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = note: this error originates in the attribute macro `fsm` (in Nightly builds, run with -Z macro-backtrace for more info)

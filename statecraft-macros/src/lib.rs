@@ -115,10 +115,29 @@ fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
     })
 }
 
-/// One discovered handler: the method name plus its `#[on]` metadata.
+/// One discovered handler: the method name, its `#[on]` metadata, and whether
+/// it returns a `Result` (and thus may fail).
 struct Handler {
     method: Ident,
     on: OnAttr,
+    fallible: bool,
+}
+
+/// Heuristic: a handler is fallible when its return type is a path ending in
+/// `Result` (e.g. `Result<T, E>` or `std::result::Result<T, E>`). Type aliases
+/// are not resolved.
+fn returns_result(sig: &syn::Signature) -> bool {
+    match &sig.output {
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, ty) => match &**ty {
+            Type::Path(path) => path
+                .path
+                .segments
+                .last()
+                .is_some_and(|seg| seg.ident == "Result"),
+            _ => false,
+        },
+    }
 }
 
 fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
@@ -146,6 +165,16 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
             )
         })?;
 
+    // Optional `type Error`; defaults to `Infallible` when no handler fails.
+    let error_ty: Type = input
+        .items
+        .iter()
+        .find_map(|item| match item {
+            ImplItem::Type(t) if t.ident == "Error" => Some(t.ty.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| syn::parse_quote!(::core::convert::Infallible));
+
     let mut handlers = Vec::new();
     for item in &input.items {
         if let ImplItem::Fn(f) = item {
@@ -153,6 +182,7 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
                 handlers.push(Handler {
                     method: f.sig.ident.clone(),
                     on: parse_on(attr)?,
+                    fallible: returns_result(&f.sig),
                 });
             }
         }
@@ -187,19 +217,23 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
     });
 
     // apply arms. Single-target handlers set the state directly; branching
-    // handlers map the returned target enum onto a state.
+    // handlers map the returned target enum onto a state. A fallible handler
+    // has its error wrapped into `ApplyError::Handler` via `?`.
     let arms = handlers.iter().map(|h| {
         let method = &h.method;
         let s = &h.on.state;
         let ev = &h.on.event;
-        if h.on.next.len() == 1 {
+        // `self.#method().await`, plus `?`-unwrapping when the handler is fallible.
+        let call = if h.fallible {
+            quote! { self.#method().await.map_err(::statecraft::ApplyError::Handler)? }
+        } else {
+            quote! { self.#method().await }
+        };
+        let set_state = if h.on.next.len() == 1 {
             let target = &h.on.next[0];
             quote! {
-                (#state_enum::#s, #event_enum::#ev) => {
-                    self.#method().await;
-                    self.state = #state_enum::#target;
-                    ::core::result::Result::Ok(())
-                }
+                #call;
+                self.state = #state_enum::#target;
             }
         } else {
             let next_name = next_enum_ident(&h.on);
@@ -208,11 +242,14 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
                     .iter()
                     .map(|t| quote! { #next_name::#t => #state_enum::#t, });
             quote! {
-                (#state_enum::#s, #event_enum::#ev) => {
-                    let __next = self.#method().await;
-                    self.state = match __next { #(#map_arms)* };
-                    ::core::result::Result::Ok(())
-                }
+                let __next = #call;
+                self.state = match __next { #(#map_arms)* };
+            }
+        };
+        quote! {
+            (#state_enum::#s, #event_enum::#ev) => {
+                #set_state
+                ::core::result::Result::Ok(())
             }
         }
     });
@@ -263,7 +300,7 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
             pub async fn apply(
                 &mut self,
                 event: #event_enum,
-            ) -> ::core::result::Result<(), ::statecraft::ApplyError> {
+            ) -> ::core::result::Result<(), ::statecraft::ApplyError<#error_ty>> {
                 match (self.state, event) {
                     #(#arms)*
                     _ => ::core::result::Result::Err(::statecraft::ApplyError::NoTransition),
