@@ -2,6 +2,7 @@
 
 Ergonomic, compile-time validated async finite state machines for Rust.
 
+
 `statecraft` turns an ordinary Rust `impl` block into a state machine with
 generated state/event types, direct async event application, an optional
 runtime adapter, and compile-time graph validation — while keeping handler
