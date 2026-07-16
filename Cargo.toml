@@ -42,14 +42,16 @@ categories = [
 statecraft-macros = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
-tracing = { workspace = true, optional = true }
+tracing = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
 default = []
-tracing = ["dep:tracing"]
 serde = ["dep:serde"]
+# Make the generated `emit` method public (default: module-private, handlers only).
+public-emit = ["statecraft-macros/public-emit"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
+tracing-subscriber = "0.3"

@@ -16,5 +16,17 @@
 - Fallible-хендлеры: возврат `Result<_, E>` (одиночный и ветвящийся). Тип `E`
   задаётся `type Error`, ошибка прорастает через `apply` как
   `ApplyError::Handler`. `ApplyError` стал generic — `ApplyError<E = Infallible>`.
+- D1 self-emit: хендлеры вызывают `self.emit(event)`, чтобы поставить своей же
+  FSM последующее событие. События отложенные и обрабатываются FIFO после
+  перехода текущего хендлера, в рамках одного `apply`. Наэмиченное событие без
+  хендлера логируется на `WARN` и пропускается; runaway-каскад ограничен
+  (`ApplyError::CascadeOverflow`, дефолт 10 000).
+- Фича `public-emit` (default off) — делает `emit` публичным.
+- Env `STATECRAFT_CASCADE_LIMIT` (compile-time) настраивает лимит каскада;
+  `0` — без лимита.
+
+### Changed
+- `tracing` теперь обязательная зависимость `statecraft` (была опциональной
+  фичей), чтобы предупреждения о необработанных self-emit были видны всегда.
 
 [Unreleased]: http://sebkd.fvds.ru/sebkd/statecraft/compare/main...HEAD

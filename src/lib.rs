@@ -54,4 +54,63 @@ pub enum ApplyError<E = core::convert::Infallible> {
     /// A handler returned an error.
     #[error(transparent)]
     Handler(E),
+    /// A single `apply` processed more self-emitted events than the configured
+    /// cascade limit allows (see [`cascade_limit`]). Guards against a handler
+    /// that emits an event which re-triggers itself indefinitely.
+    #[error("self-emit cascade exceeded the configured limit")]
+    CascadeOverflow,
+}
+
+/// Default upper bound on the number of self-emitted events one `apply` call
+/// will process before returning [`ApplyError::CascadeOverflow`].
+pub const DEFAULT_CASCADE_LIMIT: usize = 10_000;
+
+/// Resolve the cascade limit from an optional environment value, baked in at
+/// compile time via `option_env!("STATECRAFT_CASCADE_LIMIT")`.
+///
+/// - absent or non-numeric → [`DEFAULT_CASCADE_LIMIT`]
+/// - `0` → no limit (unbounded cascades)
+///
+/// Not intended to be called directly; the `#[fsm]` macro emits the call.
+#[doc(hidden)]
+pub const fn cascade_limit(env: Option<&str>) -> usize {
+    match env {
+        Some(s) => parse_usize_or(s, DEFAULT_CASCADE_LIMIT),
+        None => DEFAULT_CASCADE_LIMIT,
+    }
+}
+
+const fn parse_usize_or(s: &str, default: usize) -> usize {
+    let bytes = s.as_bytes();
+    if bytes.is_empty() {
+        return default;
+    }
+    let mut acc: usize = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b < b'0' || b > b'9' {
+            return default;
+        }
+        acc = acc * 10 + (b - b'0') as usize;
+        i += 1;
+    }
+    acc
+}
+
+/// Emit the structured warning for a self-emitted event that has no handler in
+/// the current state. Called by generated code; logs unconditionally at `WARN`
+/// so it is observable in production without enabling verbose tracing.
+#[doc(hidden)]
+pub fn __unhandled_emit(
+    fsm: &'static str,
+    state: &dyn core::fmt::Debug,
+    event: &dyn core::fmt::Debug,
+) {
+    tracing::warn!(
+        fsm = fsm,
+        state = ?state,
+        event = ?event,
+        "statecraft: self-emitted event has no handler in the current state; skipped",
+    );
 }

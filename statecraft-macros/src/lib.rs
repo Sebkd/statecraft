@@ -249,7 +249,7 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
         quote! {
             (#state_enum::#s, #event_enum::#ev) => {
                 #set_state
-                ::core::result::Result::Ok(())
+                ::core::result::Result::Ok(true)
             }
         }
     });
@@ -270,6 +270,15 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
         })
         .collect();
 
+    // `emit` visibility is opt-in via the `public-emit` feature (forwarded from
+    // the `statecraft` facade). Default: module-private, so only handlers reach it.
+    let emit_vis = if cfg!(feature = "public-emit") {
+        quote! { pub }
+    } else {
+        quote! {}
+    };
+    let fsm_name_str = fsm_name.to_string();
+
     Ok(quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum #state_enum {
@@ -286,24 +295,81 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
         pub struct #fsm_name {
             pub state: #state_enum,
             pub context: #context_ty,
+            __queue: ::std::collections::VecDeque<#event_enum>,
         }
 
         impl #fsm_name {
             pub fn new(context: #context_ty) -> Self {
-                Self { state: #state_enum::#initial, context }
+                Self {
+                    state: #state_enum::#initial,
+                    context,
+                    __queue: ::std::collections::VecDeque::new(),
+                }
             }
 
             pub fn state(&self) -> #state_enum {
                 self.state
             }
 
+            /// Enqueue a follow-up event for this FSM. It is processed after the
+            /// current handler returns and its transition is applied (deferred,
+            /// FIFO). Visibility is controlled by the `public-emit` feature.
+            #emit_vis fn emit(&mut self, event: #event_enum) {
+                self.__queue.push_back(event);
+            }
+
             pub async fn apply(
                 &mut self,
                 event: #event_enum,
             ) -> ::core::result::Result<(), ::statecraft::ApplyError<#error_ty>> {
+                let __result = self.__drive(event).await;
+                if __result.is_err() {
+                    // Drop any pending self-emitted events so they do not leak
+                    // into a later `apply`.
+                    self.__queue.clear();
+                }
+                __result
+            }
+
+            async fn __drive(
+                &mut self,
+                event: #event_enum,
+            ) -> ::core::result::Result<(), ::statecraft::ApplyError<#error_ty>> {
+                const __LIMIT: usize =
+                    ::statecraft::cascade_limit(::core::option_env!("STATECRAFT_CASCADE_LIMIT"));
+
+                // External event: an undeclared (state, event) pair is an error.
+                if !self.__apply_one(event).await? {
+                    return ::core::result::Result::Err(
+                        ::statecraft::ApplyError::NoTransition,
+                    );
+                }
+
+                let mut __steps: usize = 0;
+                while let ::core::option::Option::Some(__ev) = self.__queue.pop_front() {
+                    __steps += 1;
+                    if __LIMIT != 0 && __steps > __LIMIT {
+                        return ::core::result::Result::Err(
+                            ::statecraft::ApplyError::CascadeOverflow,
+                        );
+                    }
+                    // Self-emitted event with no handler here: log and skip.
+                    if !self.__apply_one(__ev).await? {
+                        ::statecraft::__unhandled_emit(#fsm_name_str, &self.state, &__ev);
+                    }
+                }
+                ::core::result::Result::Ok(())
+            }
+
+            // Runs the handler for (state, event). Returns Ok(true) if a handler
+            // matched, Ok(false) if none is declared; handler errors propagate.
+            async fn __apply_one(
+                &mut self,
+                event: #event_enum,
+            ) -> ::core::result::Result<bool, ::statecraft::ApplyError<#error_ty>> {
                 match (self.state, event) {
                     #(#arms)*
-                    _ => ::core::result::Result::Err(::statecraft::ApplyError::NoTransition),
+                    _ => ::core::result::Result::Ok(false),
                 }
             }
 
