@@ -12,6 +12,11 @@ description = "Procedural macros for the `statecraft` async finite state machine
 [lib]
 proc-macro = true
 
+[features]
+# Enabled via the `statecraft` facade's `public-emit` feature; makes the
+# generated `emit` method `pub`.
+public-emit = []
+
 [dependencies]
 proc-macro2 = "1.0"
 quote = "1.0"
