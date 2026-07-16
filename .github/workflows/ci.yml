@@ -1,0 +1,64 @@
+name: CI
+
+# Runs on GitHub's hosted runners. Development lives on Gitea; commits reach
+# GitHub via a push mirror, and that push triggers this workflow.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test (stable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      # Compile-check the optional features (serde, public-emit). Not `test`,
+      # because `public-emit` alters generated code and the trybuild UI-test
+      # snapshots assume the default feature set.
+      - name: Build (all features)
+        run: cargo build --workspace --all-targets --all-features
+
+  msrv:
+    name: Check MSRV (1.96.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.96.1
+        uses: dtolnay/rust-toolchain@1.96.1
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      # Library surface only (no --all-targets): dev-dependencies such as
+      # trybuild may require a newer compiler than the crate's own MSRV.
+      - name: Check
+        run: cargo check --workspace --all-features
