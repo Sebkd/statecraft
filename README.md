@@ -1,5 +1,9 @@
 # statecraft
 
+[![CI](https://github.com/Sebkd/statecraft/actions/workflows/ci.yml/badge.svg)](https://github.com/Sebkd/statecraft/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![MSRV](https://img.shields.io/badge/MSRV-1.96.1-blue.svg)](https://github.com/rust-lang/rust/blob/master/RELEASES.md)
+
 Ergonomic, compile-time validated async finite state machines for Rust.
 
 `statecraft` turns an ordinary Rust `impl` block into a state machine with

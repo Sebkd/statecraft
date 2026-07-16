@@ -5,10 +5,10 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.96.1"
 license = "MIT"
 authors = ["sebkd <sebkd80@gmail.com>"]
-repository = "http://sebkd.fvds.ru/sebkd/statecraft"
+repository = "https://github.com/Sebkd/statecraft"
 readme = "README.md"
 
 [workspace.dependencies]
