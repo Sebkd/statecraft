@@ -1,0 +1,5 @@
+error: event `Go` is declared with inconsistent payloads across #[on] attributes; every occurrence must use the same payload type
+  --> tests/ui/inconsistent_payload.rs:18:33
+   |
+18 |     #[on(state = Other, event = Go(B), next = Idle)]
+   |                                 ^^
