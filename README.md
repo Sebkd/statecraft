@@ -96,6 +96,33 @@ impl Job {
 }
 ```
 
+## Event payloads
+
+An event may carry data: `#[on(event = Foo(Type), ...)]`. The payload is passed
+to the handler by value and works with branching and `self.emit`.
+
+```rust
+#[derive(Debug)]
+pub struct Order {
+    qty: u32,
+}
+
+#[fsm(initial = Idle)]
+impl Shop {
+    type Context = Totals;
+
+    #[on(state = Idle, event = Add(Order), next = Idle)]
+    async fn on_add(&mut self, order: Order) {
+        self.context.total += order.qty;
+    }
+}
+// shop.apply(ShopEvent::Add(Order { qty: 3 })).await?;
+```
+
+The same event name must declare the same payload everywhere (a mismatch is a
+compile error). Payload types must implement `Debug` and be at least as visible
+as the FSM (typically `pub`), since the generated event enum exposes them.
+
 ## Self-driving handlers (`self.emit`)
 
 A handler can enqueue a follow-up event for its own FSM with `self.emit(...)`.

@@ -24,9 +24,16 @@
 - Фича `public-emit` (default off) — делает `emit` публичным.
 - Env `STATECRAFT_CASCADE_LIMIT` (compile-time) настраивает лимит каскада;
   `0` — без лимита.
+- Payload у событий: `#[on(event = Foo(Type), ...)]`. Payload передаётся в
+  хендлер аргументом по значению; работает с ветвлением и `self.emit`. Одно имя
+  события с разными payload-типами — ошибка компиляции. Payload-типы должны быть
+  `Debug` и не менее видимы, чем FSM.
 
 ### Changed
 - `tracing` теперь обязательная зависимость `statecraft` (была опциональной
   фичей), чтобы предупреждения о необработанных self-emit были видны всегда.
+- Сгенерированный Event-enum теперь `#[derive(Debug)]` только (раньше
+  `Debug, Clone, Copy, PartialEq, Eq`) — payload может не поддерживать эти
+  трейты.
 
 [Unreleased]: http://sebkd.fvds.ru/sebkd/statecraft/compare/main...HEAD

@@ -3,23 +3,25 @@
 //! The public surface is the [`macro@fsm`] attribute macro, which turns an
 //! annotated `impl` block into a generated finite state machine.
 //!
-//! # D2 prototype scope
+//! # Scope
 //!
-//! This is an early prototype focused on **D2 — compile-time-checked
-//! branching**. It generates the state/event enums, an owned (runtime-agnostic)
+//! The macro generates the state/event enums, an owned (runtime-agnostic)
 //! `apply`, and a per-transition target enum for every `#[on(next = [..])]`
-//! with more than one target. Returning an undeclared target is therefore a
-//! compile error, not a runtime `InvalidTransition`.
+//! with more than one target (returning an undeclared target is a compile
+//! error). It also supports fallible handlers (`Result<_, Error>`), event
+//! payloads (`event = Foo(Type)`), and self-emit (`self.emit`) for FIFO
+//! follow-up events.
 //!
-//! Deliberately out of scope for now: event payloads, `Result<_, Error>`
-//! handler returns, the Tokio adapter (spawn/Handle), and `self.emit` (D1).
+//! Not yet implemented: the Tokio adapter (spawn/Handle/watch).
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
-    Attribute, Ident, ImplItem, ItemImpl, Token, Type, bracketed, parse_macro_input,
-    punctuated::Punctuated, spanned::Spanned, token::Bracket,
+    Attribute, Ident, ImplItem, ItemImpl, Token, Type, bracketed, parenthesized, parse_macro_input,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token::{Bracket, Paren},
 };
 
 /// Attribute macro that generates a finite state machine from an `impl` block.
@@ -71,19 +73,29 @@ pub fn fsm(attr: TokenStream, item: TokenStream) -> TokenStream {
 struct OnAttr {
     state: Ident,
     event: Ident,
+    /// Payload type when the event is declared as `event = Foo(Type)`.
+    payload: Option<Type>,
     next: Vec<Ident>,
 }
 
 fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
     let mut state = None;
     let mut event = None;
+    let mut payload: Option<Type> = None;
     let mut next: Option<Vec<Ident>> = None;
 
     attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("state") {
             state = Some(meta.value()?.parse()?);
         } else if meta.path.is_ident("event") {
-            event = Some(meta.value()?.parse()?);
+            // `event = Foo` (unit) or `event = Foo(Type)` (payload).
+            let input = meta.value()?;
+            event = Some(input.parse()?);
+            if input.peek(Paren) {
+                let content;
+                parenthesized!(content in input);
+                payload = Some(content.parse::<Type>()?);
+            }
         } else if meta.path.is_ident("next") {
             let input = meta.value()?;
             if input.peek(Bracket) {
@@ -111,6 +123,7 @@ fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
     Ok(OnAttr {
         state: state.ok_or_else(|| syn::Error::new(span, "missing #[on] key: state"))?,
         event: event.ok_or_else(|| syn::Error::new(span, "missing #[on] key: event"))?,
+        payload,
         next,
     })
 }
@@ -177,14 +190,14 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
 
     let mut handlers = Vec::new();
     for item in &input.items {
-        if let ImplItem::Fn(f) = item {
-            if let Some(attr) = f.attrs.iter().find(|a| a.path().is_ident("on")) {
-                handlers.push(Handler {
-                    method: f.sig.ident.clone(),
-                    on: parse_on(attr)?,
-                    fallible: returns_result(&f.sig),
-                });
-            }
+        if let ImplItem::Fn(f) = item
+            && let Some(attr) = f.attrs.iter().find(|a| a.path().is_ident("on"))
+        {
+            handlers.push(Handler {
+                method: f.sig.ident.clone(),
+                on: parse_on(attr)?,
+                fallible: returns_result(&f.sig),
+            });
         }
     }
 
@@ -192,13 +205,13 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
     // targets. Events, likewise, from each handler's trigger.
     let mut states: Vec<Ident> = Vec::new();
     add_unique(&mut states, initial);
-    let mut events: Vec<Ident> = Vec::new();
+    let mut events: Vec<EventDef> = Vec::new();
     for h in &handlers {
         add_unique(&mut states, &h.on.state);
         for target in &h.on.next {
             add_unique(&mut states, target);
         }
-        add_unique(&mut events, &h.on.event);
+        add_event(&mut events, &h.on)?;
     }
 
     let state_enum = format_ident!("{}State", fsm_name);
@@ -223,11 +236,17 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
         let method = &h.method;
         let s = &h.on.state;
         let ev = &h.on.event;
-        // `self.#method().await`, plus `?`-unwrapping when the handler is fallible.
-        let call = if h.fallible {
-            quote! { self.#method().await.map_err(::statecraft::ApplyError::Handler)? }
+        // Payload events bind their value and pass it to the handler by value.
+        let (ev_pat, call_arg) = if h.on.payload.is_some() {
+            (quote! { #event_enum::#ev(__payload) }, quote! { __payload })
         } else {
-            quote! { self.#method().await }
+            (quote! { #event_enum::#ev }, quote! {})
+        };
+        // `self.#method(<arg>).await`, plus `?`-unwrapping when fallible.
+        let call = if h.fallible {
+            quote! { self.#method(#call_arg).await.map_err(::statecraft::ApplyError::Handler)? }
+        } else {
+            quote! { self.#method(#call_arg).await }
         };
         let set_state = if h.on.next.len() == 1 {
             let target = &h.on.next[0];
@@ -247,9 +266,9 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
             }
         };
         quote! {
-            (#state_enum::#s, #event_enum::#ev) => {
+            (#state_enum::#s, #ev_pat) => {
                 #set_state
-                ::core::result::Result::Ok(true)
+                ::core::result::Result::Ok(::core::option::Option::None)
             }
         }
     });
@@ -279,15 +298,25 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
     };
     let fsm_name_str = fsm_name.to_string();
 
+    // The event enum carries only `Debug` (payloads may not be Copy/Eq/Clone).
+    // Internally we never require more (see the copy-free dispatch below).
+    let event_variants = events.iter().map(|e| {
+        let name = &e.name;
+        match &e.payload {
+            Some(ty) => quote! { #name(#ty), },
+            None => quote! { #name, },
+        }
+    });
+
     Ok(quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum #state_enum {
             #(#states,)*
         }
 
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug)]
         pub enum #event_enum {
-            #(#events,)*
+            #(#event_variants)*
         }
 
         #(#next_enums)*
@@ -339,14 +368,14 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
                     ::statecraft::cascade_limit(::core::option_env!("STATECRAFT_CASCADE_LIMIT"));
 
                 // External event: an undeclared (state, event) pair is an error.
-                if !self.__apply_one(event).await? {
+                if self.__apply_one(event).await?.is_some() {
                     return ::core::result::Result::Err(
                         ::statecraft::ApplyError::NoTransition,
                     );
                 }
 
                 let mut __steps: usize = 0;
-                while let ::core::option::Option::Some(__ev) = self.__queue.pop_front() {
+                while let ::core::option::Option::Some(__event) = self.__queue.pop_front() {
                     __steps += 1;
                     if __LIMIT != 0 && __steps > __LIMIT {
                         return ::core::result::Result::Err(
@@ -354,22 +383,32 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
                         );
                     }
                     // Self-emitted event with no handler here: log and skip.
-                    if !self.__apply_one(__ev).await? {
-                        ::statecraft::__unhandled_emit(#fsm_name_str, &self.state, &__ev);
+                    // `__apply_one` hands the event back when unhandled.
+                    if let ::core::option::Option::Some(__unhandled) =
+                        self.__apply_one(__event).await?
+                    {
+                        ::statecraft::__unhandled_emit(#fsm_name_str, &self.state, &__unhandled);
                     }
                 }
                 ::core::result::Result::Ok(())
             }
 
-            // Runs the handler for (state, event). Returns Ok(true) if a handler
-            // matched, Ok(false) if none is declared; handler errors propagate.
+            // Runs the handler for (state, event). Returns Ok(None) if a handler
+            // matched, Ok(Some(event)) if none is declared (the event is handed
+            // back so it can be reported without requiring `Event: Copy`);
+            // handler errors propagate as Err.
             async fn __apply_one(
                 &mut self,
                 event: #event_enum,
-            ) -> ::core::result::Result<bool, ::statecraft::ApplyError<#error_ty>> {
+            ) -> ::core::result::Result<
+                ::core::option::Option<#event_enum>,
+                ::statecraft::ApplyError<#error_ty>,
+            > {
                 match (self.state, event) {
                     #(#arms)*
-                    _ => ::core::result::Result::Ok(false),
+                    (_, __event) => ::core::result::Result::Ok(
+                        ::core::option::Option::Some(__event),
+                    ),
                 }
             }
 
@@ -386,4 +425,35 @@ fn add_unique(list: &mut Vec<Ident>, id: &Ident) {
     if !list.iter().any(|existing| existing == id) {
         list.push(id.clone());
     }
+}
+
+/// A distinct event in the generated event enum: a name and an optional payload
+/// type.
+struct EventDef {
+    name: Ident,
+    payload: Option<Type>,
+}
+
+/// Record an event from an `#[on]`, enforcing that every occurrence of the same
+/// event name declares the same payload (or all are unit).
+fn add_event(events: &mut Vec<EventDef>, on: &OnAttr) -> syn::Result<()> {
+    let payload_str = |p: &Option<Type>| p.as_ref().map(|t| quote!(#t).to_string());
+    if let Some(existing) = events.iter().find(|e| e.name == on.event) {
+        if payload_str(&existing.payload) != payload_str(&on.payload) {
+            return Err(syn::Error::new_spanned(
+                &on.event,
+                format!(
+                    "event `{}` is declared with inconsistent payloads across #[on] \
+                     attributes; every occurrence must use the same payload type",
+                    on.event
+                ),
+            ));
+        }
+        return Ok(());
+    }
+    events.push(EventDef {
+        name: on.event.clone(),
+        payload: on.payload.clone(),
+    });
+    Ok(())
 }
