@@ -16,6 +16,9 @@ proc-macro = true
 # Enabled via the `statecraft` facade's `public-emit` feature; makes the
 # generated `emit` method `pub`.
 public-emit = []
+# Enabled via the `statecraft` facade's `tokio` feature; generates the Tokio
+# adapter (spawn/Handle/watch).
+tokio = []
 
 [dependencies]
 proc-macro2 = "1.0"

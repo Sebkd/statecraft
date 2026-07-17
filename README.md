@@ -149,10 +149,62 @@ A self-emitted event with no handler in the current state is skipped and logged
 at `WARN` (via `tracing`), so it stays observable in production. A runaway
 cascade is capped (default 10 000 events per `apply`, → `ApplyError::CascadeOverflow`).
 
+## Owned mode (default, no Tokio)
+
+By default there is no runtime and no background task: you own the FSM value (as
+in [Quick start](#quick-start)) and drive it yourself with `apply`. This is the
+runtime-agnostic core — `apply` is a plain `async fn`, so any executor works and
+the crate does not depend on Tokio.
+
+```rust
+let mut fsm = MyFsm::new(MyContext::default());
+
+fsm.apply(MyFsmEvent::Start).await?;   // one event + its self-emit cascade
+let _ = fsm.state();                   // current state (Copy)
+let _ = &fsm.context;                  // context is directly accessible
+
+// drive it with whatever executor you like — Tokio, or none:
+// futures::executor::block_on(fsm.apply(MyFsmEvent::Stop))?;
+```
+
+One owner drives it (`&mut fsm`); for concurrent sending from several tasks, use
+spawned mode below.
+
+## Spawned mode (optional Tokio adapter)
+
+The core is runtime-agnostic — you drive it yourself with `apply`. With the
+`tokio` feature, the FSM can instead run in a background Tokio task; you talk to
+it through a cloneable `Handle` and observe state via `watch`.
+
+```rust
+// requires the `tokio` feature and a running Tokio runtime
+let (handle, join) = Worker::spawn(());
+
+handle.send(WorkerEvent::Start).await?;   // fire-and-forget
+
+let mut states = handle.watch();          // watch::Receiver<WorkerState>
+states.changed().await?;
+assert_eq!(*states.borrow(), WorkerState::Running);
+
+handle.shutdown();     // graceful: drain queued events, then stop
+// handle.shutdown_now();  // hard: abort immediately
+join.await?;
+```
+
+- `send` is fire-and-forget; observe the outcome via `watch`.
+- A handler error in the background is logged at `error!` and the task keeps
+  running.
+- The event channel is bounded; set its capacity with `#[fsm(channel_size = N)]`
+  (default 64).
+- `Context` and the payload types must be `Send + 'static`.
+
 ## Features & configuration
 
+- `tokio` (default off): the Tokio adapter (`spawn`/`Handle`/`watch`). Without
+  it, only the owned core is compiled and `tokio` is not a dependency.
 - `public-emit` (default off): makes the generated `emit` method `pub`. By
   default it is module-private, callable only from handlers.
+- `#[fsm(channel_size = N)]`: capacity of the spawned event channel (default 64).
 - `STATECRAFT_CASCADE_LIMIT` (compile-time env): overrides the self-emit cascade
   limit. `0` disables the limit (unbounded cascades).
 

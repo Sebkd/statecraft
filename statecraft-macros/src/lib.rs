@@ -43,12 +43,16 @@ use syn::{
 #[proc_macro_attribute]
 pub fn fsm(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut initial: Option<Ident> = None;
+    let mut channel_size: usize = 64;
     let parser = syn::meta::parser(|meta| {
         if meta.path.is_ident("initial") {
             initial = Some(meta.value()?.parse()?);
             Ok(())
+        } else if meta.path.is_ident("channel_size") {
+            channel_size = meta.value()?.parse::<syn::LitInt>()?.base10_parse()?;
+            Ok(())
         } else {
-            Err(meta.error("unsupported #[fsm] key (expected `initial`)"))
+            Err(meta.error("unsupported #[fsm] key (expected `initial`, `channel_size`)"))
         }
     });
     parse_macro_input!(attr with parser);
@@ -63,7 +67,7 @@ pub fn fsm(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     };
 
-    match expand(&initial, &input) {
+    match expand(&initial, channel_size, &input) {
         Ok(tokens) => tokens.into(),
         Err(err) => err.to_compile_error().into(),
     }
@@ -153,7 +157,7 @@ fn returns_result(sig: &syn::Signature) -> bool {
     }
 }
 
-fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
+fn expand(initial: &Ident, channel_size: usize, input: &ItemImpl) -> syn::Result<TokenStream2> {
     let fsm_name = match &*input.self_ty {
         Type::Path(path) => path.path.segments.last().unwrap().ident.clone(),
         other => {
@@ -308,6 +312,127 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
         }
     });
 
+    // Tokio adapter (feature `tokio`): `spawn` + a cloneable `Handle`. When the
+    // feature is off, `cfg!` is false and empty token streams are emitted, so
+    // the owned core stays runtime-agnostic.
+    let handle_name = format_ident!("{}Handle", fsm_name);
+    let (adapter_impl_items, adapter_types) = if cfg!(feature = "tokio") {
+        let impl_items = quote! {
+            /// Spawn this FSM onto a Tokio task. Returns a cloneable handle and
+            /// the task's `JoinHandle`. Requires a running Tokio runtime.
+            pub fn spawn(
+                context: #context_ty,
+            ) -> (#handle_name, ::statecraft::__rt::JoinHandle<()>)
+            where
+                #context_ty: ::core::marker::Send + 'static,
+                #event_enum: ::core::marker::Send + 'static,
+            {
+                let (__tx, mut __rx) =
+                    ::statecraft::__rt::mpsc::channel::<#event_enum>(#channel_size);
+                let (__state_tx, __state_rx) =
+                    ::statecraft::__rt::watch::channel(#state_enum::#initial);
+                let __shutdown = ::std::sync::Arc::new(::statecraft::__rt::Notify::new());
+                let __shutdown_task = ::std::sync::Arc::clone(&__shutdown);
+
+                let __join = ::statecraft::__rt::spawn(async move {
+                    let mut __fsm = Self::new(context);
+                    loop {
+                        ::statecraft::__rt::select! {
+                            biased;
+                            _ = __shutdown_task.notified() => {
+                                // Graceful: drain already-queued events, then stop.
+                                while let ::core::result::Result::Ok(__event) =
+                                    __rx.try_recv()
+                                {
+                                    Self::__dispatch(&mut __fsm, __event, &__state_tx).await;
+                                }
+                                break;
+                            }
+                            __maybe = __rx.recv() => {
+                                match __maybe {
+                                    ::core::option::Option::Some(__event) => {
+                                        Self::__dispatch(&mut __fsm, __event, &__state_tx).await;
+                                    }
+                                    // All handles dropped: graceful end.
+                                    ::core::option::Option::None => break,
+                                }
+                            }
+                        }
+                    }
+                });
+                let __abort = __join.abort_handle();
+
+                (
+                    #handle_name {
+                        __tx,
+                        __shutdown,
+                        __abort,
+                        __state_rx,
+                    },
+                    __join,
+                )
+            }
+
+            async fn __dispatch(
+                fsm: &mut Self,
+                event: #event_enum,
+                state_tx: &::statecraft::__rt::watch::Sender<#state_enum>,
+            ) {
+                match fsm.apply(event).await {
+                    ::core::result::Result::Ok(()) => {
+                        let _ = state_tx.send_replace(fsm.state());
+                    }
+                    ::core::result::Result::Err(__e) => {
+                        ::statecraft::__log_spawn_error(#fsm_name_str, &__e);
+                    }
+                }
+            }
+        };
+
+        let types = quote! {
+            /// Handle to a spawned FSM. Cheap to clone; use it to send events,
+            /// observe state, and control shutdown.
+            #[derive(::core::clone::Clone)]
+            pub struct #handle_name {
+                __tx: ::statecraft::__rt::mpsc::Sender<#event_enum>,
+                __shutdown: ::std::sync::Arc<::statecraft::__rt::Notify>,
+                __abort: ::statecraft::__rt::AbortHandle,
+                __state_rx: ::statecraft::__rt::watch::Receiver<#state_enum>,
+            }
+
+            impl #handle_name {
+                /// Send an event to the FSM (fire-and-forget). Errors only if the
+                /// task has stopped.
+                pub async fn send(
+                    &self,
+                    event: #event_enum,
+                ) -> ::core::result::Result<(), ::statecraft::__rt::SendError<#event_enum>> {
+                    self.__tx.send(event).await
+                }
+
+                /// A `watch` receiver for the current state, updated after each
+                /// transition.
+                pub fn watch(&self) -> ::statecraft::__rt::watch::Receiver<#state_enum> {
+                    self.__state_rx.clone()
+                }
+
+                /// Graceful shutdown: process already-queued events, then stop.
+                pub fn shutdown(&self) {
+                    self.__shutdown.notify_one();
+                }
+
+                /// Hard shutdown: abort the task, dropping queued events.
+                pub fn shutdown_now(&self) {
+                    self.__abort.abort();
+                }
+            }
+        };
+
+        (impl_items, types)
+    } else {
+        (quote! {}, quote! {})
+    };
+
     Ok(quote! {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum #state_enum {
@@ -412,8 +537,12 @@ fn expand(initial: &Ident, input: &ItemImpl) -> syn::Result<TokenStream2> {
                 }
             }
 
+            #adapter_impl_items
+
             #(#cleaned)*
         }
+
+        #adapter_types
     })
 }
 

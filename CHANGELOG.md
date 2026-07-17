@@ -28,6 +28,11 @@
   хендлер аргументом по значению; работает с ветвлением и `self.emit`. Одно имя
   события с разными payload-типами — ошибка компиляции. Payload-типы должны быть
   `Debug` и не менее видимы, чем FSM.
+- D3 — опциональный Tokio-адаптер за фичей `tokio` (default off):
+  `Machine::spawn(ctx) -> ({Fsm}Handle, JoinHandle)`. `Handle` (Clone): `send`
+  (fire-and-forget), `watch` (текущее состояние), `shutdown` (graceful),
+  `shutdown_now` (hard). Ошибка `apply` в фоне логируется на `error!` и задача
+  продолжает работу. Ёмкость канала — `#[fsm(channel_size = N)]`, default 64.
 
 ### Changed
 - `tracing` теперь обязательная зависимость `statecraft` (была опциональной
@@ -35,5 +40,7 @@
 - Сгенерированный Event-enum теперь `#[derive(Debug)]` только (раньше
   `Debug, Clone, Copy, PartialEq, Eq`) — payload может не поддерживать эти
   трейты.
+- `tokio` теперь **опциональная** зависимость (за фичей `tokio`); ядро
+  runtime-agnostic и собирается без tokio. Убрана неиспользуемая `tokio-util`.
 
 [Unreleased]: http://sebkd.fvds.ru/sebkd/statecraft/compare/main...HEAD
