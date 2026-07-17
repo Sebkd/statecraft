@@ -114,3 +114,27 @@ pub fn __unhandled_emit(
         "statecraft: self-emitted event has no handler in the current state; skipped",
     );
 }
+
+/// Log an `apply` failure inside a spawned FSM task. Spawned FSMs log the error
+/// and keep running (they do not stop on a failed transition).
+#[doc(hidden)]
+pub fn __log_spawn_error<E: core::fmt::Debug>(fsm: &'static str, err: &ApplyError<E>) {
+    tracing::error!(
+        fsm = fsm,
+        error = ?err,
+        "statecraft: apply failed in spawned FSM; continuing",
+    );
+}
+
+/// Runtime primitives re-exported for generated Tokio-adapter code. Only present
+/// with the `tokio` feature. Not a stable public API.
+#[cfg(feature = "tokio")]
+#[doc(hidden)]
+pub mod __rt {
+    pub use tokio::sync::{Notify, mpsc, watch};
+    pub use tokio::task::{AbortHandle, JoinHandle};
+    pub use tokio::{select, spawn};
+
+    /// Error returned by `Handle::send` when the FSM task has stopped.
+    pub type SendError<T> = tokio::sync::mpsc::error::SendError<T>;
+}

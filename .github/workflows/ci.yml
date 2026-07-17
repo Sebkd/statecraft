@@ -37,12 +37,20 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Clippy (tokio)
+        run: cargo clippy --workspace --all-targets --features tokio -- -D warnings
+
       - name: Test
         run: cargo test --workspace
 
-      # Compile-check the optional features (serde, public-emit). Not `test`,
-      # because `public-emit` alters generated code and the trybuild UI-test
-      # snapshots assume the default feature set.
+      # The Tokio adapter test needs the `tokio` feature. Run it on its own,
+      # not with the whole workspace: `tokio` (like `public-emit`) alters
+      # generated code, and the trybuild UI-test snapshots assume the default
+      # feature set, so running trybuild with these features would break.
+      - name: Test (tokio adapter)
+        run: cargo test --features tokio --test tokio_adapter
+
+      # Compile-check the optional features (serde, public-emit, tokio).
       - name: Build (all features)
         run: cargo build --workspace --all-targets --all-features
 

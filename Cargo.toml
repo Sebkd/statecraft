@@ -40,8 +40,7 @@ categories = [
 
 [dependencies]
 statecraft-macros = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -51,6 +50,9 @@ default = []
 serde = ["dep:serde"]
 # Make the generated `emit` method public (default: module-private, handlers only).
 public-emit = ["statecraft-macros/public-emit"]
+# Opt-in Tokio adapter: generates `spawn`/`Handle`/`watch`. The core is
+# runtime-agnostic and compiles without this feature.
+tokio = ["dep:tokio", "statecraft-macros/tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
