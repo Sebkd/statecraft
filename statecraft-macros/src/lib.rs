@@ -472,6 +472,16 @@ fn expand(initial: &Ident, channel_size: usize, input: &ItemImpl) -> syn::Result
                 self.__queue.push_back(event);
             }
 
+            /// Drop all pending self-emitted events and enqueue this one as the
+            /// sole follow-up. Use when a newly relevant event makes the queued
+            /// ones obsolete. Deferred like `emit`; affects only the self-emit
+            /// queue, not the spawned event channel. Visibility follows
+            /// `public-emit`.
+            #emit_vis fn emit_replace(&mut self, event: #event_enum) {
+                self.__queue.clear();
+                self.__queue.push_back(event);
+            }
+
             pub async fn apply(
                 &mut self,
                 event: #event_enum,

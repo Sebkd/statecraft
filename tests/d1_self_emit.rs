@@ -141,3 +141,68 @@ fn test_cascade_limit_parsing() {
         statecraft::DEFAULT_CASCADE_LIMIT
     );
 }
+
+// --- emit_replace drops the pending queue and keeps only the new event ---
+
+#[derive(Debug, Default)]
+struct Trace {
+    seen: Vec<char>,
+}
+
+#[fsm(initial = Start)]
+impl Repl {
+    type Context = Trace;
+
+    #[on(state = Start, event = Begin, next = Mid)]
+    async fn on_begin(&mut self) {
+        self.emit(ReplEvent::A);
+        self.emit(ReplEvent::B);
+        // A and B are now obsolete; keep only C.
+        self.emit_replace(ReplEvent::C);
+    }
+
+    #[on(state = Mid, event = A, next = Mid)]
+    async fn on_a(&mut self) {
+        self.context.seen.push('A');
+    }
+
+    #[on(state = Mid, event = B, next = Mid)]
+    async fn on_b(&mut self) {
+        self.context.seen.push('B');
+    }
+
+    #[on(state = Mid, event = C, next = Done)]
+    async fn on_c(&mut self) {
+        self.context.seen.push('C');
+    }
+}
+
+#[tokio::test]
+async fn test_emit_replace_clears_queue() {
+    let mut m = Repl::new(Trace::default());
+    m.apply(ReplEvent::Begin).await.unwrap();
+    // A and B were dropped by emit_replace; only C ran.
+    assert_eq!(m.context.seen, vec!['C']);
+    assert_eq!(m.state(), ReplState::Done);
+}
+
+#[tokio::test]
+async fn test_emit_replace_on_empty_queue_acts_like_emit() {
+    // With nothing queued yet, emit_replace behaves like emit.
+    #[fsm(initial = Idle)]
+    impl Solo {
+        type Context = ();
+
+        #[on(state = Idle, event = Go, next = Working)]
+        async fn on_go(&mut self) {
+            self.emit_replace(SoloEvent::Fin);
+        }
+
+        #[on(state = Working, event = Fin, next = Done)]
+        async fn on_fin(&mut self) {}
+    }
+
+    let mut m = Solo::new(());
+    m.apply(SoloEvent::Go).await.unwrap();
+    assert_eq!(m.state(), SoloState::Done);
+}

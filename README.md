@@ -145,6 +145,10 @@ impl Pipeline {
 // A single `apply(Start)` walks Idle -> Working -> Done.
 ```
 
+`self.emit_replace(event)` is a priority variant: it drops any pending
+self-emitted events and keeps only this one — handy when a newly relevant event
+makes the queued ones obsolete.
+
 A self-emitted event with no handler in the current state is skipped and logged
 at `WARN` (via `tracing`), so it stays observable in production. A runaway
 cascade is capped (default 10 000 events per `apply`, → `ApplyError::CascadeOverflow`).
