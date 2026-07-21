@@ -1,0 +1,8 @@
+error[E0624]: method `emit` is private
+  --> tests/ui/emit_is_private.rs:18:7
+   |
+ 7 |     #[fsm(initial = Idle)]
+   |     ---------------------- private method defined here
+...
+18 |     m.emit(inner::MachineEvent::Go);
+   |       ^^^^ private method
