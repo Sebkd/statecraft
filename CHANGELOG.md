@@ -28,6 +28,8 @@
   хендлер аргументом по значению; работает с ветвлением и `self.emit`. Одно имя
   события с разными payload-типами — ошибка компиляции. Payload-типы должны быть
   `Debug` и не менее видимы, чем FSM.
+- `self.emit_replace(event)` — приоритетный self-emit: сбрасывает очередь
+  наэмиченных событий и ставит одно новое (когда очередь стала неактуальной).
 - D3 — опциональный Tokio-адаптер за фичей `tokio` (default off):
   `Machine::spawn(ctx) -> ({Fsm}Handle, JoinHandle)`. `Handle` (Clone): `send`
   (fire-and-forget), `watch` (текущее состояние), `shutdown` (graceful),
