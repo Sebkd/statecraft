@@ -220,6 +220,24 @@ join.await?;
 - `STATECRAFT_CASCADE_LIMIT` (compile-time env): overrides the self-emit cascade
   limit. `0` disables the limit (unbounded cascades).
 
+## Examples
+
+Runnable examples live in [`examples/`](./examples):
+
+- **`showcase`** — owned mode: `self.emit`, multi-branch from one `(state,
+  event)`, and `emit_replace`. `cargo run --example showcase`
+- **`driven_by_channel`** — an owned FSM driven by an external event source (a
+  timer feeding a channel). `cargo run --example driven_by_channel`
+- **`stream_file`** — drive an FSM from a streamed file, with streaming I/O
+  inside handlers. `cargo run --example stream_file`
+- **`axum_fsm/`** — a registry (`HashMap`) of spawned FSMs, one per id, driven
+  over an [axum](https://github.com/tokio-rs/axum) HTTP API. Keeps each
+  `JoinHandle` for controlled shutdown — graceful `shutdown` + await with a
+  hard `shutdown_now` timeout fallback (`DELETE` stops one, Ctrl-C drains all) —
+  and shows multi-target branching. `cd examples/axum_fsm && cargo run`
+
+See [CONTEXT.md](./CONTEXT.md) for a map of the codebase.
+
 ## License
 
 Licensed under the [MIT License](./LICENSE).

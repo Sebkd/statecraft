@@ -1,0 +1,13 @@
+[package]
+name = "axum_fsm"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+statecraft = { path = "../..", features = ["tokio"] }
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+
+# Standalone crate: not part of the statecraft workspace.
+[workspace]

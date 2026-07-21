@@ -1,9 +1,12 @@
 [workspace]
 members = [".", "statecraft-macros"]
+# The axum example is a standalone crate (needs axum + the `tokio` feature); it
+# is not part of this workspace.
+exclude = ["examples/axum_fsm"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 rust-version = "1.96.1"
 license = "MIT"

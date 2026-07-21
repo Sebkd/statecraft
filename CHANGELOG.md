@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 > A Russian mirror is kept in [CHANGELOG_RU.md](CHANGELOG_RU.md).
 
+## [0.1.5]
+
+### Added
+- Examples: `showcase` (self-emit, branching, `emit_replace`),
+  `driven_by_channel`, `stream_file`, and an axum HTTP integration
+  (`examples/axum_fsm/`).
+- `CONTEXT.md` — a map of the codebase for contributors and agents.
+
 ## [0.1.4]
 
 ### Added
@@ -70,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   core is runtime-agnostic and builds without tokio. Removed the unused
   `tokio-util`.
 
+[0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.2

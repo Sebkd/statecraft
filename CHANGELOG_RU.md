@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
+## [0.1.5]
+
+### Added
+- Примеры: `showcase` (self-emit, ветвление, `emit_replace`),
+  `driven_by_channel`, `stream_file` и HTTP-интеграция с axum
+  (`examples/axum_fsm/`).
+- `CONTEXT.md` — карта кодовой базы для контрибьюторов и агентов.
+
 ## [0.1.4]
 
 ### Added
@@ -67,6 +75,7 @@
 - `tokio` теперь **опциональная** зависимость (за фичей `tokio`); ядро
   runtime-agnostic и собирается без tokio. Убрана неиспользуемая `tokio-util`.
 
+[0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.2
