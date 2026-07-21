@@ -18,6 +18,7 @@
 mod attrs;
 mod codegen;
 mod model;
+mod validation;
 
 use proc_macro::TokenStream;
 use syn::{Ident, ItemImpl, parse_macro_input};

@@ -1,0 +1,5 @@
+error: handler `on_add` handles an event with a payload (`event = Add(Order)`) but takes no payload argument; add a `Order` parameter, e.g. `async fn on_add(&mut self, _: Order)`
+  --> tests/ui/payload_missing_arg.rs:13:14
+   |
+13 |     async fn on_add(&mut self) {}
+   |              ^^^^^^
