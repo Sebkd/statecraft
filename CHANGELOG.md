@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 > A Russian mirror is kept in [CHANGELOG_RU.md](CHANGELOG_RU.md).
 
+## [0.1.2]
+
+### Changed
+- Internal: the `statecraft-macros` crate is split into `attrs` / `model` /
+  `codegen` modules. No public API or behavior change.
+
 ## [0.1.1]
 
 ### Added
@@ -48,4 +54,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   core is runtime-agnostic and builds without tokio. Removed the unused
   `tokio-util`.
 
+[0.1.2]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.1
