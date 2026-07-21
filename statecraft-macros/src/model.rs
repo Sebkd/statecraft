@@ -1,17 +1,23 @@
 //! The discovered FSM model (handlers, events) and small collection helpers,
 //! including the event-payload consistency check.
 
+use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{Ident, Type};
 
 use crate::attrs::OnAttr;
 
-/// One discovered handler: the method name, its `#[on]` metadata, and whether
-/// it returns a `Result` (and thus may fail).
+/// One discovered handler: the method name, its `#[on]` metadata, and fields
+/// used for code generation and diagnostics.
 pub(crate) struct Handler {
     pub(crate) method: Ident,
     pub(crate) on: OnAttr,
+    /// Returns a `Result` (and thus may fail).
     pub(crate) fallible: bool,
+    /// Span of the handler method name, for diagnostics.
+    pub(crate) span: Span,
+    /// Whether the method takes a non-receiver argument (the payload).
+    pub(crate) has_payload_param: bool,
 }
 
 /// A distinct event in the generated event enum: a name and an optional payload

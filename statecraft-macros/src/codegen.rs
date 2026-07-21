@@ -2,11 +2,12 @@
 //! enums, the FSM struct, `apply`/`emit`, and the optional Tokio adapter.
 
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{format_ident, quote};
-use syn::{Ident, ImplItem, ItemImpl, Type, spanned::Spanned};
+use quote::{format_ident, quote, quote_spanned};
+use syn::{FnArg, Ident, ImplItem, ItemImpl, Type, spanned::Spanned};
 
 use crate::attrs::{parse_on, returns_result};
 use crate::model::{EventDef, Handler, add_event, add_unique, next_enum_ident};
+use crate::validation;
 
 pub(crate) fn expand(
     initial: &Ident,
@@ -38,14 +39,13 @@ pub(crate) fn expand(
         })?;
 
     // Optional `type Error`; defaults to `Infallible` when no handler fails.
-    let error_ty: Type = input
-        .items
-        .iter()
-        .find_map(|item| match item {
-            ImplItem::Type(t) if t.ident == "Error" => Some(t.ty.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| syn::parse_quote!(::core::convert::Infallible));
+    let declared_error_ty: Option<Type> = input.items.iter().find_map(|item| match item {
+        ImplItem::Type(t) if t.ident == "Error" => Some(t.ty.clone()),
+        _ => None,
+    });
+    let error_declared = declared_error_ty.is_some();
+    let error_ty: Type =
+        declared_error_ty.unwrap_or_else(|| syn::parse_quote!(::core::convert::Infallible));
 
     let mut handlers = Vec::new();
     for item in &input.items {
@@ -54,11 +54,17 @@ pub(crate) fn expand(
         {
             handlers.push(Handler {
                 method: f.sig.ident.clone(),
+                span: f.sig.ident.span(),
+                has_payload_param: f.sig.inputs.iter().any(|a| matches!(a, FnArg::Typed(_))),
                 on: parse_on(attr)?,
                 fallible: returns_result(&f.sig),
             });
         }
     }
+
+    // Clear diagnostics for common handler mistakes (payload arity, missing
+    // `type Error`) before generating code.
+    validation::check(&handlers, error_declared)?;
 
     // States, in first-seen order: initial, then each handler's source and
     // targets. Events, likewise, from each handler's trigger.
@@ -101,9 +107,21 @@ pub(crate) fn expand(
         } else {
             (quote! { #event_enum::#ev }, quote! {})
         };
-        // `self.#method(<arg>).await`, plus `?`-unwrapping when fallible.
+        // `self.#method(<arg>).await`. Fallible handlers wrap the error into
+        // `ApplyError::Handler` explicitly (not via `?`/`From`), spanned at the
+        // handler, so a wrong error type reads as a clear `mismatched types`
+        // there — expected `type Error`, found the handler's error.
         let call = if h.fallible {
-            quote! { self.#method(#call_arg).await.map_err(::statecraft::ApplyError::Handler)? }
+            quote_spanned! {h.span=>
+                match self.#method(#call_arg).await {
+                    ::core::result::Result::Ok(__v) => __v,
+                    ::core::result::Result::Err(__e) => {
+                        return ::core::result::Result::Err(
+                            ::statecraft::ApplyError::Handler(__e),
+                        );
+                    }
+                }
+            }
         } else {
             quote! { self.#method(#call_arg).await }
         };

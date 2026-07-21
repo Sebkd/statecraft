@@ -1,0 +1,5 @@
+error: handler `on_go` returns `Result`, but the FSM declares no error type; add `type Error = ...;` to the impl
+  --> tests/ui/fallible_without_error_type.rs:13:14
+   |
+13 |     async fn on_go(&mut self) -> Result<(), Boom> {
+   |              ^^^^^

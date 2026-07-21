@@ -1,12 +1,19 @@
-error[E0277]: `?` couldn't convert the error to `ApplyError<Boom>`
-  --> tests/ui/error_type_mismatch.rs:12:22
+error[E0308]: mismatched types
+  --> tests/ui/error_type_mismatch.rs:18:14
    |
-12 | #[fsm(initial = Idle)]
-   | ---------------------^
-   | |                    |
-   | |                    the trait `From<ApplyError<Other>>` is not implemented for `ApplyError<Boom>`
-   | this has type `Result<_, Other>`
-   | this can't be annotated with `?` because it has type `Result<_, ApplyError<Other>>`
+18 |     async fn on_start(&mut self) -> Result<(), Other> {
+   |              ^^^^^^^^
+   |              |
+   |              expected `Boom`, found `Other`
+   |              arguments to this enum variant are incorrect
    |
-   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
-   = note: this error originates in the attribute macro `fsm` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: the type constructed contains `Other` due to the type of the argument passed
+  --> tests/ui/error_type_mismatch.rs:18:14
+   |
+18 |     async fn on_start(&mut self) -> Result<(), Other> {
+   |              ^^^^^^^^ this argument influences the type of `Handler`
+note: tuple variant defined here
+  --> $WORKSPACE/src/lib.rs
+   |
+   |     Handler(E),
+   |     ^^^^^^^

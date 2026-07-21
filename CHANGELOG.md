@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 > A Russian mirror is kept in [CHANGELOG_RU.md](CHANGELOG_RU.md).
 
+## [0.1.3]
+
+### Changed
+- Clearer compile errors for common handler mistakes, pointing at the handler
+  rather than at generated code: a fallible handler with no `type Error`; a
+  payload event whose handler omits the payload argument; and a handler whose
+  `Result` error type differs from `type Error` (now a single `mismatched types`
+  error, expected/found).
+
 ## [0.1.2]
 
 ### Changed
@@ -54,5 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   core is runtime-agnostic and builds without tokio. Removed the unused
   `tokio-util`.
 
+[0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.1
