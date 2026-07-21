@@ -5,7 +5,7 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
-## [Unreleased]
+## [0.1.3]
 
 ### Changed
 - Внятные ошибки компиляции для типичных ошибок в хендлерах — с указанием на сам
@@ -60,6 +60,6 @@
 - `tokio` теперь **опциональная** зависимость (за фичей `tokio`); ядро
   runtime-agnostic и собирается без tokio. Убрана неиспользуемая `tokio-util`.
 
-[Unreleased]: https://github.com/Sebkd/statecraft/compare/v0.1.2...HEAD
+[0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.1
