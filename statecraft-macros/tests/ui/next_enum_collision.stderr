@@ -1,0 +1,5 @@
+error: generated target enum `ABCNext` collides between transitions `(AB, C)` and `(A, BC)`; rename a state or event
+  --> tests/ui/next_enum_collision.rs:15:14
+   |
+15 |     async fn h2(&mut self) -> ABCNext {
+   |              ^^
