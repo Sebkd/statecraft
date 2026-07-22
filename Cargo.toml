@@ -1,12 +1,12 @@
 [workspace]
-members = [".", "statecraft-macros"]
+members = [".", "statecraft-fsm-macros"]
 # The axum example is a standalone crate (needs axum + the `tokio` feature); it
 # is not part of this workspace.
 exclude = ["examples/axum_fsm"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 rust-version = "1.96.1"
 license = "MIT"
@@ -15,7 +15,7 @@ repository = "https://github.com/Sebkd/statecraft"
 readme = "README.md"
 
 [workspace.dependencies]
-statecraft-macros = { version = "0.1.0", path = "statecraft-macros" }
+statecraft-fsm-macros = { version = "0.1", path = "statecraft-fsm-macros" }
 
 tokio = { version = "1.52", features = ["sync", "rt", "time", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
@@ -23,7 +23,7 @@ tracing = "0.1"
 thiserror = "2.0"
 
 [package]
-name = "statecraft"
+name = "statecraft-fsm"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -41,7 +41,7 @@ categories = [
 ]
 
 [dependencies]
-statecraft-macros = { workspace = true }
+statecraft-fsm-macros = { workspace = true }
 tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
@@ -49,10 +49,10 @@ thiserror = { workspace = true }
 [features]
 default = []
 # Make the generated `emit` method public (default: module-private, handlers only).
-public-emit = ["statecraft-macros/public-emit"]
+public-emit = ["statecraft-fsm-macros/public-emit"]
 # Opt-in Tokio adapter: generates `spawn`/`Handle`/`watch`. The core is
 # runtime-agnostic and compiles without this feature.
-tokio = ["dep:tokio", "statecraft-macros/tokio"]
+tokio = ["dep:tokio", "statecraft-fsm-macros/tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

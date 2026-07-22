@@ -1,7 +1,7 @@
 // A handler's error type must match the FSM's `type Error`. Here the handler
 // returns `Result<_, Other>` while `type Error = Boom`, so wrapping the error
 // into `ApplyError::Handler` cannot type-check.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 struct Boom;

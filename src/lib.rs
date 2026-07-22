@@ -10,7 +10,7 @@
 //! ## Example
 //!
 //! ```ignore
-//! use statecraft::fsm;
+//! use statecraft_fsm::fsm;
 //!
 //! #[derive(Debug, Default)]
 //! pub struct MyContext {
@@ -55,7 +55,7 @@
 //! or `core::result::Result<_, E>`): the macro does not resolve type aliases, so
 //! a handler returning e.g. `MyResult<()>` is **not** recognized as fallible.
 
-pub use statecraft_macros::fsm;
+pub use statecraft_fsm_macros::fsm;
 
 /// Error returned by a generated `apply`.
 ///

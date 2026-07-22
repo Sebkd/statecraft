@@ -6,7 +6,7 @@
 
 use std::error::Error;
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 

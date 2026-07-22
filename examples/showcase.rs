@@ -3,7 +3,7 @@
 //!
 //! Run: `cargo run --example showcase`
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug, Default)]
 struct Ctx {

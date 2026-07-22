@@ -1,6 +1,6 @@
 // A fallible handler requires the FSM to declare `type Error`. Omitting it is
 // our own diagnostic, pointing at the handler.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 struct Boom;

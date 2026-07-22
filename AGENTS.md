@@ -17,14 +17,14 @@ the compiler** (each branching transition gets its own target enum), and
 - `src/` — the runtime facade and core types (`lib.rs`): `ApplyError`, the
   cascade-limit helpers, the `tracing` shims, and the feature-gated `__rt`
   re-exports the generated code relies on. The macro re-export lives here too.
-- `statecraft-macros/src/` — the proc-macro, split by responsibility:
+- `statecraft-fsm-macros/src/` — the proc-macro, split by responsibility:
   - `lib.rs` — the `#[proc_macro_attribute]` entry point and top-level parsing.
   - `attrs.rs` — parsing of the `#[on(..)]` attribute.
   - `model.rs` — the intermediate model (handlers, events, generated idents).
   - `validation.rs` — compile-time checks that produce user-facing diagnostics.
   - `codegen.rs` — emits the enums, struct, `apply`/`emit`, and Tokio adapter.
 - `tests/` — integration tests that exercise runtime behavior.
-- `statecraft-macros/tests/` — `trybuild` cases: `pass/` for what must compile,
+- `statecraft-fsm-macros/tests/` — `trybuild` cases: `pass/` for what must compile,
   `ui/` for compile-fail diagnostics with matching `.stderr` snapshots.
 - `examples/` — runnable examples (`axum_fsm/` is a standalone crate).
 - `docs/`, `DESIGN.md` — internal working notes. **Both are git-ignored; never
@@ -36,7 +36,7 @@ the compiler** (each branching transition gets its own target enum), and
 - `cargo build --workspace` / `cargo test --workspace` — build and test the core.
 - `cargo test --features tokio --test tokio_adapter` — the spawned-mode tests
   (the Tokio adapter changes generated code, so it is tested separately).
-- `cargo test -p statecraft-macros` — the `trybuild` UI/pass suite. **Run this
+- `cargo test -p statecraft-fsm-macros` — the `trybuild` UI/pass suite. **Run this
   under default features only**; enabling `tokio`/`public-emit` alters the
   generated code and invalidates the `.stderr` snapshots.
 - `cargo clippy --workspace --all-targets -- -D warnings` — lint clean.

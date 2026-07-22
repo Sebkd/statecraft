@@ -2,7 +2,7 @@
 // calling it from outside the FSM's module must not compile.
 
 mod inner {
-    use statecraft::fsm;
+    use statecraft_fsm::fsm;
 
     #[fsm(initial = Idle)]
     impl Machine {

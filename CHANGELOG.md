@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 > A Russian mirror is kept in [CHANGELOG_RU.md](CHANGELOG_RU.md).
 
+## [0.1.7]
+
+### Changed
+- **Renamed the crates for the crates.io release:** the facade is now
+  `statecraft-fsm` (imported as `statecraft_fsm`) and the macro crate is
+  `statecraft-fsm-macros`. The name `statecraft` was already taken on crates.io
+  by an unrelated crate. No API changes beyond the import path.
+
 ## [0.1.6]
 
 ### Removed
@@ -88,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   core is runtime-agnostic and builds without tokio. Removed the unused
   `tokio-util`.
 
+[0.1.7]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4

@@ -15,13 +15,13 @@ branching, and an optional Tokio adapter.
 
 Two crates (`Cargo.toml` workspace):
 
-- **`statecraft`** (`src/lib.rs`) — the facade + runtime core. Re-exports the
+- **`statecraft-fsm`** (`src/lib.rs`) — the facade + runtime core. Re-exports the
   `fsm` macro and holds the small runtime support the generated code calls.
-- **`statecraft-macros`** (`statecraft-macros/src/`) — the proc-macro crate.
+- **`statecraft-fsm-macros`** (`statecraft-fsm-macros/src/`) — the proc-macro crate.
 
 ### `src/lib.rs` (core)
 
-- `pub use statecraft_macros::fsm;` — the public macro.
+- `pub use statecraft_fsm_macros::fsm;` — the public macro.
 - `ApplyError<E = Infallible>` — `NoTransition` / `Handler(E)` / `CascadeOverflow`.
 - `DEFAULT_CASCADE_LIMIT`, `cascade_limit(Option<&str>)` — compile-time self-emit
   cascade cap (via `option_env!("STATECRAFT_CASCADE_LIMIT")`).
@@ -31,7 +31,7 @@ Two crates (`Cargo.toml` workspace):
   (`mpsc`/`watch`/`Notify`/`spawn`/`JoinHandle`/`AbortHandle`/`select!`) so the
   generated adapter needs no direct tokio dependency in the user crate.
 
-### `statecraft-macros/src/` (proc-macro)
+### `statecraft-fsm-macros/src/` (proc-macro)
 
 - **`lib.rs`** — the `#[proc_macro_attribute] fsm` entry point; parses the
   `#[fsm(initial = .., channel_size = ..)]` args and calls `codegen::expand`.
@@ -79,7 +79,6 @@ in both modes (a hardcoded FIFO/breadth-first invariant).
 
 - `tokio` — the adapter (default off; core is runtime-agnostic).
 - `public-emit` — make `emit`/`emit_replace` public (default: module-private).
-- `serde` — (declared; reserved).
 - `STATECRAFT_CASCADE_LIMIT` — compile-time env, self-emit cascade cap; `0` = off.
 
 ## Tests
@@ -87,7 +86,7 @@ in both modes (a hardcoded FIFO/breadth-first invariant).
 - `tests/` — integration tests (`d1_*`, `d2_*`, `payload`, `tokio_adapter`).
   The adapter tests are `#![cfg(feature = "tokio")]`; run with
   `cargo test --features tokio --test tokio_adapter`.
-- `statecraft-macros/tests/` — `trybuild` harness: `pass/` (must compile) and
+- `statecraft-fsm-macros/tests/` — `trybuild` harness: `pass/` (must compile) and
   `ui/` (must fail, with `.stderr` snapshots for each diagnostic). Run trybuild
   under default features only (the `tokio`/`public-emit` features alter
   generated code and would break the snapshots).

@@ -1,6 +1,6 @@
 // A payload event's handler must accept the payload argument. Forgetting it is
 // our own diagnostic, pointing at the handler.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 pub struct Order;

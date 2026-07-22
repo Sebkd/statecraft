@@ -1,6 +1,6 @@
 // A fallible handler whose error type matches `type Error` compiles, for both
 // single-target and branching transitions.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 struct Boom;
