@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
+## [0.1.7]
+
+### Changed
+- **Крейты переименованы для релиза на crates.io:** фасад теперь
+  `statecraft-fsm` (импортируется как `statecraft_fsm`), макро-крейт —
+  `statecraft-fsm-macros`. Имя `statecraft` на crates.io уже занято сторонним
+  крейтом. Изменений API, кроме пути импорта, нет.
+
 ## [0.1.6]
 
 ### Removed
@@ -85,6 +93,7 @@
 - `tokio` теперь **опциональная** зависимость (за фичей `tokio`); ядро
   runtime-agnostic и собирается без tokio. Убрана неиспользуемая `tokio-util`.
 
+[0.1.7]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4

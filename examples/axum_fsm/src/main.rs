@@ -25,7 +25,7 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 use tokio::task::JoinHandle;
 
 #[derive(Debug, Default)]

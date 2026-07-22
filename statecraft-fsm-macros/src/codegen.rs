@@ -117,7 +117,7 @@ pub(crate) fn expand(
                     ::core::result::Result::Ok(__v) => __v,
                     ::core::result::Result::Err(__e) => {
                         return ::core::result::Result::Err(
-                            ::statecraft::ApplyError::Handler(__e),
+                            ::statecraft_fsm::ApplyError::Handler(__e),
                         );
                     }
                 }
@@ -195,22 +195,22 @@ pub(crate) fn expand(
             /// the task's `JoinHandle`. Requires a running Tokio runtime.
             pub fn spawn(
                 context: #context_ty,
-            ) -> (#handle_name, ::statecraft::__rt::JoinHandle<()>)
+            ) -> (#handle_name, ::statecraft_fsm::__rt::JoinHandle<()>)
             where
                 #context_ty: ::core::marker::Send + 'static,
                 #event_enum: ::core::marker::Send + 'static,
             {
                 let (__tx, mut __rx) =
-                    ::statecraft::__rt::mpsc::channel::<#event_enum>(#channel_size);
+                    ::statecraft_fsm::__rt::mpsc::channel::<#event_enum>(#channel_size);
                 let (__state_tx, __state_rx) =
-                    ::statecraft::__rt::watch::channel(#state_enum::#initial);
-                let __shutdown = ::std::sync::Arc::new(::statecraft::__rt::Notify::new());
+                    ::statecraft_fsm::__rt::watch::channel(#state_enum::#initial);
+                let __shutdown = ::std::sync::Arc::new(::statecraft_fsm::__rt::Notify::new());
                 let __shutdown_task = ::std::sync::Arc::clone(&__shutdown);
 
-                let __join = ::statecraft::__rt::spawn(async move {
+                let __join = ::statecraft_fsm::__rt::spawn(async move {
                     let mut __fsm = Self::new(context);
                     loop {
-                        ::statecraft::__rt::select! {
+                        ::statecraft_fsm::__rt::select! {
                             biased;
                             _ = __shutdown_task.notified() => {
                                 // Graceful: drain already-queued events, then stop.
@@ -249,14 +249,14 @@ pub(crate) fn expand(
             async fn __dispatch(
                 fsm: &mut Self,
                 event: #event_enum,
-                state_tx: &::statecraft::__rt::watch::Sender<#state_enum>,
+                state_tx: &::statecraft_fsm::__rt::watch::Sender<#state_enum>,
             ) {
                 match fsm.apply(event).await {
                     ::core::result::Result::Ok(()) => {
                         let _ = state_tx.send_replace(fsm.state());
                     }
                     ::core::result::Result::Err(__e) => {
-                        ::statecraft::__log_spawn_error(#fsm_name_str, &__e);
+                        ::statecraft_fsm::__log_spawn_error(#fsm_name_str, &__e);
                     }
                 }
             }
@@ -267,10 +267,10 @@ pub(crate) fn expand(
             /// observe state, and control shutdown.
             #[derive(::core::clone::Clone)]
             pub struct #handle_name {
-                __tx: ::statecraft::__rt::mpsc::Sender<#event_enum>,
-                __shutdown: ::std::sync::Arc<::statecraft::__rt::Notify>,
-                __abort: ::statecraft::__rt::AbortHandle,
-                __state_rx: ::statecraft::__rt::watch::Receiver<#state_enum>,
+                __tx: ::statecraft_fsm::__rt::mpsc::Sender<#event_enum>,
+                __shutdown: ::std::sync::Arc<::statecraft_fsm::__rt::Notify>,
+                __abort: ::statecraft_fsm::__rt::AbortHandle,
+                __state_rx: ::statecraft_fsm::__rt::watch::Receiver<#state_enum>,
             }
 
             impl #handle_name {
@@ -279,13 +279,13 @@ pub(crate) fn expand(
                 pub async fn send(
                     &self,
                     event: #event_enum,
-                ) -> ::core::result::Result<(), ::statecraft::__rt::SendError<#event_enum>> {
+                ) -> ::core::result::Result<(), ::statecraft_fsm::__rt::SendError<#event_enum>> {
                     self.__tx.send(event).await
                 }
 
                 /// A `watch` receiver for the current state, updated after each
                 /// transition.
-                pub fn watch(&self) -> ::statecraft::__rt::watch::Receiver<#state_enum> {
+                pub fn watch(&self) -> ::statecraft_fsm::__rt::watch::Receiver<#state_enum> {
                     self.__state_rx.clone()
                 }
 
@@ -358,7 +358,7 @@ pub(crate) fn expand(
             pub async fn apply(
                 &mut self,
                 event: #event_enum,
-            ) -> ::core::result::Result<(), ::statecraft::ApplyError<#error_ty>> {
+            ) -> ::core::result::Result<(), ::statecraft_fsm::ApplyError<#error_ty>> {
                 let __result = self.__drive(event).await;
                 if __result.is_err() {
                     // Drop any pending self-emitted events so they do not leak
@@ -371,14 +371,14 @@ pub(crate) fn expand(
             async fn __drive(
                 &mut self,
                 event: #event_enum,
-            ) -> ::core::result::Result<(), ::statecraft::ApplyError<#error_ty>> {
+            ) -> ::core::result::Result<(), ::statecraft_fsm::ApplyError<#error_ty>> {
                 const __LIMIT: usize =
-                    ::statecraft::cascade_limit(::core::option_env!("STATECRAFT_CASCADE_LIMIT"));
+                    ::statecraft_fsm::cascade_limit(::core::option_env!("STATECRAFT_CASCADE_LIMIT"));
 
                 // External event: an undeclared (state, event) pair is an error.
                 if self.__apply_one(event).await?.is_some() {
                     return ::core::result::Result::Err(
-                        ::statecraft::ApplyError::NoTransition,
+                        ::statecraft_fsm::ApplyError::NoTransition,
                     );
                 }
 
@@ -387,7 +387,7 @@ pub(crate) fn expand(
                     __steps += 1;
                     if __LIMIT != 0 && __steps > __LIMIT {
                         return ::core::result::Result::Err(
-                            ::statecraft::ApplyError::CascadeOverflow,
+                            ::statecraft_fsm::ApplyError::CascadeOverflow,
                         );
                     }
                     // Self-emitted event with no handler here: log and skip.
@@ -395,7 +395,7 @@ pub(crate) fn expand(
                     if let ::core::option::Option::Some(__unhandled) =
                         self.__apply_one(__event).await?
                     {
-                        ::statecraft::__unhandled_emit(#fsm_name_str, &self.state, &__unhandled);
+                        ::statecraft_fsm::__unhandled_emit(#fsm_name_str, &self.state, &__unhandled);
                     }
                 }
                 ::core::result::Result::Ok(())
@@ -410,7 +410,7 @@ pub(crate) fn expand(
                 event: #event_enum,
             ) -> ::core::result::Result<
                 ::core::option::Option<#event_enum>,
-                ::statecraft::ApplyError<#error_ty>,
+                ::statecraft_fsm::ApplyError<#error_ty>,
             > {
                 match (self.state, event) {
                     #(#arms)*

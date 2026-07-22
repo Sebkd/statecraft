@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 use tokio::sync::mpsc;
 
 #[fsm(initial = Red)]

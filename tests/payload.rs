@@ -1,7 +1,7 @@
 //! Event payloads: `#[on(event = Foo(Type), ...)]`. The payload is passed to the
 //! handler by value; it works with branching and with `self.emit`.
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 // --- payload reaches the handler ---
 

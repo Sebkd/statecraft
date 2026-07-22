@@ -2,7 +2,7 @@
 //! feature.
 #![cfg(feature = "tokio")]
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[fsm(initial = Idle)]
 impl Worker {

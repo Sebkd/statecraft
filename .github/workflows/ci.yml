@@ -50,7 +50,7 @@ jobs:
       - name: Test (tokio adapter)
         run: cargo test --features tokio --test tokio_adapter
 
-      # Compile-check the optional features (serde, public-emit, tokio).
+      # Compile-check the optional features (public-emit, tokio).
       - name: Build (all features)
         run: cargo build --workspace --all-targets --all-features
 

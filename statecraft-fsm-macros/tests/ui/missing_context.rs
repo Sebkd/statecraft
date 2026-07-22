@@ -1,6 +1,6 @@
 // The macro requires an associated `type Context`. Omitting it is our own
 // diagnostic, not a downstream rustc error.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[fsm(initial = Idle)]
 impl Machine {

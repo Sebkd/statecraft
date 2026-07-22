@@ -1,6 +1,6 @@
 // The same event name must declare the same payload everywhere. Here `Go` is
 // declared with two different payload types, which is our own diagnostic.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 struct A;

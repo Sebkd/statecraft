@@ -1,7 +1,7 @@
 //! SEBKD-2: fallible handler returns. A handler may return `Result<_, E>`;
 //! its error propagates through `apply` as `ApplyError::Handler`.
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 enum MyError {
@@ -58,7 +58,7 @@ async fn test_handler_error_propagates() {
     // Start moves to Running (count 6), then Check errors (count 7 > 5).
     m.apply(MachineEvent::Start).await.unwrap();
     let err = m.apply(MachineEvent::Check).await.unwrap_err();
-    assert_eq!(err, statecraft::ApplyError::Handler(MyError::TooMany));
+    assert_eq!(err, statecraft_fsm::ApplyError::Handler(MyError::TooMany));
     // State is unchanged on error.
     assert_eq!(m.state(), MachineState::Running);
 }

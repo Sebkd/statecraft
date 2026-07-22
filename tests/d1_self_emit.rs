@@ -1,7 +1,7 @@
 //! D1: self-emit. Handlers enqueue follow-up events via `self.emit`, processed
 //! after the current transition, FIFO, within the same `apply` call.
 
-use statecraft::{ApplyError, fsm};
+use statecraft_fsm::{ApplyError, fsm};
 
 // --- cascade drives itself forward in one apply, follow-up sees new state ---
 
@@ -127,18 +127,18 @@ async fn test_runaway_cascade_overflows() {
 #[test]
 fn test_cascade_limit_parsing() {
     assert_eq!(
-        statecraft::cascade_limit(None),
-        statecraft::DEFAULT_CASCADE_LIMIT
+        statecraft_fsm::cascade_limit(None),
+        statecraft_fsm::DEFAULT_CASCADE_LIMIT
     );
-    assert_eq!(statecraft::cascade_limit(Some("5")), 5);
-    assert_eq!(statecraft::cascade_limit(Some("0")), 0); // 0 = unbounded
+    assert_eq!(statecraft_fsm::cascade_limit(Some("5")), 5);
+    assert_eq!(statecraft_fsm::cascade_limit(Some("0")), 0); // 0 = unbounded
     assert_eq!(
-        statecraft::cascade_limit(Some("nope")),
-        statecraft::DEFAULT_CASCADE_LIMIT
+        statecraft_fsm::cascade_limit(Some("nope")),
+        statecraft_fsm::DEFAULT_CASCADE_LIMIT
     );
     assert_eq!(
-        statecraft::cascade_limit(Some("")),
-        statecraft::DEFAULT_CASCADE_LIMIT
+        statecraft_fsm::cascade_limit(Some("")),
+        statecraft_fsm::DEFAULT_CASCADE_LIMIT
     );
 }
 

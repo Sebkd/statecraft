@@ -4,7 +4,7 @@
 use std::io;
 use std::sync::{Arc, Mutex};
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Default)]

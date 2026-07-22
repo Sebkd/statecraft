@@ -1,5 +1,5 @@
 // A branching handler that returns a declared target compiles fine.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug, Default)]
 struct Counter {

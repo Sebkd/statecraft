@@ -1,5 +1,5 @@
 // An event with a payload, passed to the handler by value, compiles.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug)]
 pub struct Order {

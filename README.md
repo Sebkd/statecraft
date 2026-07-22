@@ -1,4 +1,4 @@
-# statecraft
+# statecraft-fsm
 
 [![CI](https://github.com/Sebkd/statecraft/actions/workflows/ci.yml/badge.svg)](https://github.com/Sebkd/statecraft/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
@@ -6,7 +6,7 @@
 
 Ergonomic, compile-time validated async finite state machines for Rust.
 
-`statecraft` turns an ordinary Rust `impl` block into a state machine with
+`statecraft-fsm` turns an ordinary Rust `impl` block into a state machine with
 generated state/event types, direct async event application, self-driving
 handlers, and compile-time-checked branching — while keeping handler logic as
 plain, explicit Rust.
@@ -14,6 +14,16 @@ plain, explicit Rust.
 > **Status:** early development. The core model, the self-emit engine, and the
 > optional Tokio adapter all work today; broader graph validation (reachability,
 > exhaustiveness) is still to come. Design discussion welcome.
+
+## Install
+
+```toml
+[dependencies]
+statecraft-fsm = "0.1"
+```
+
+The crate is published as `statecraft-fsm`; in code it is imported as
+`statecraft_fsm` (e.g. `use statecraft_fsm::fsm;`).
 
 ## Goals
 
@@ -29,7 +39,7 @@ plain, explicit Rust.
 ## Quick start
 
 ```rust
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug, Default)]
 pub struct MyContext {

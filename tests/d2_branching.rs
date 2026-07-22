@@ -3,7 +3,7 @@
 //! `Check` in `Running` may go to `Running` or `Done`. The handler returns the
 //! generated `RunningCheckNext` enum, so an undeclared target cannot compile.
 
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[derive(Debug, Default)]
 struct Counter {
@@ -62,5 +62,5 @@ async fn test_undeclared_transition_is_runtime_error() {
     let mut m = Machine::new(Counter::default());
     // Reset is not valid in Idle: no handler for (Idle, Reset).
     let err = m.apply(MachineEvent::Reset).await.unwrap_err();
-    assert_eq!(err, statecraft::ApplyError::NoTransition);
+    assert_eq!(err, statecraft_fsm::ApplyError::NoTransition);
 }

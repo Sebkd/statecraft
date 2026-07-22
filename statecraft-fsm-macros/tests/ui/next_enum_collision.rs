@@ -1,6 +1,6 @@
 // Two distinct branching transitions must not generate colliding target-enum
 // names. `(AB, C)` and `(A, BC)` both map to `ABCNext`, which is our diagnostic.
-use statecraft::fsm;
+use statecraft_fsm::fsm;
 
 #[fsm(initial = Start)]
 impl Machine {
