@@ -5,6 +5,16 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
+## [0.1.6]
+
+### Removed
+- Фича `serde`. Была объявлена, но ничего не делала (никаких `serde`-derive не
+  генерировалось); убрана, чтобы не тащить пустую фичу.
+
+### Changed
+- Доки: поправлена заметка о статусе в README (Tokio-адаптер готов, а не «ещё в
+  разработке») и добавлено упоминание `tokio-fsm` как источника идеи.
+
 ## [0.1.5]
 
 ### Added
@@ -75,6 +85,7 @@
 - `tokio` теперь **опциональная** зависимость (за фичей `tokio`); ядро
   runtime-agnostic и собирается без tokio. Убрана неиспользуемая `tokio-util`.
 
+[0.1.6]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3

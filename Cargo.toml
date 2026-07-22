@@ -6,7 +6,7 @@ exclude = ["examples/axum_fsm"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 rust-version = "1.96.1"
 license = "MIT"
@@ -20,7 +20,6 @@ statecraft-macros = { version = "0.1.0", path = "statecraft-macros" }
 tokio = { version = "1.52", features = ["sync", "rt", "time", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
-serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 
 [package]
@@ -45,12 +44,10 @@ categories = [
 statecraft-macros = { workspace = true }
 tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
-serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
 default = []
-serde = ["dep:serde"]
 # Make the generated `emit` method public (default: module-private, handlers only).
 public-emit = ["statecraft-macros/public-emit"]
 # Opt-in Tokio adapter: generates `spawn`/`Handle`/`watch`. The core is

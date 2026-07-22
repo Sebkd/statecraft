@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 > A Russian mirror is kept in [CHANGELOG_RU.md](CHANGELOG_RU.md).
 
+## [0.1.6]
+
+### Removed
+- The `serde` feature. It was declared but did nothing (no `serde` derives were
+  generated); removed to avoid shipping a no-op feature.
+
+### Changed
+- Docs: corrected the README status note (the Tokio adapter is done, not "still
+  being built out") and added an acknowledgement of `tokio-fsm` as prior art.
+
 ## [0.1.5]
 
 ### Added
@@ -78,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   core is runtime-agnostic and builds without tokio. Removed the unused
   `tokio-util`.
 
+[0.1.6]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Sebkd/statecraft/releases/tag/v0.1.3
