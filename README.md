@@ -11,9 +11,9 @@ generated state/event types, direct async event application, self-driving
 handlers, and compile-time-checked branching — while keeping handler logic as
 plain, explicit Rust.
 
-> **Status:** early development. The core model below works today; the Tokio
-> adapter and richer validation are still being built out. Design discussion
-> welcome.
+> **Status:** early development. The core model, the self-emit engine, and the
+> optional Tokio adapter all work today; broader graph validation (reachability,
+> exhaustiveness) is still to come. Design discussion welcome.
 
 ## Goals
 
@@ -237,6 +237,14 @@ Runnable examples live in [`examples/`](./examples):
   and shows multi-target branching. `cd examples/axum_fsm && cargo run`
 
 See [CONTEXT.md](./CONTEXT.md) for a map of the codebase.
+
+## Acknowledgements
+
+`statecraft` was inspired by [tokio-fsm](https://github.com/abhishekshree/tokio-fsm)
+(MIT-licensed), which explored the `#[fsm]` / `#[on]` attribute-macro approach to
+async state machines in Rust. `statecraft` is an independent implementation with a
+different design (runtime-agnostic core, compile-time-checked branching, self-emit
+engine, opt-in Tokio adapter), but credit is due to that project for the idea.
 
 ## License
 
