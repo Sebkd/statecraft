@@ -61,10 +61,13 @@ jobs:
       - name: Test (dispatch policy, boxed-all)
         run: cargo test --features diagnostics,boxed-all --test boxed_dispatch
 
-      # Ignored by default: they abort a child process on purpose. Debug build,
-      # where a boxed and an inlined handler are cleanly separated.
-      - name: Test (dispatch stack, ignored)
-        run: cargo test --test dispatch_stack -- --ignored
+      # Ignored by default (aborts a child process on purpose), so run it
+      # explicitly — but only the positive case. Whether an *inlined* handler
+      # overflows a given budget is an optimiser decision, not a property of
+      # this crate: a codegen improvement would turn that assertion red with
+      # nothing regressed. The counterpart stays a local diagnostic.
+      - name: Test (dispatch stack fits budget)
+        run: cargo test --test dispatch_stack -- --ignored --exact boxed_handler_fits_the_budget
 
       - name: Clippy (boxed-all + diagnostics)
         run: cargo clippy --workspace --all-targets --features boxed-all,diagnostics -- -D warnings

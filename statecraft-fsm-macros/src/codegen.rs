@@ -198,8 +198,11 @@ pub(crate) fn expand(
             /// given event.
             ///
             /// The future is created and dropped without ever being polled, so
-            /// no handler runs and nothing observable happens. Available with
-            /// the `diagnostics` feature.
+            /// no handler runs. The event is moved into it either way, so a
+            /// payload's `Drop` does run — pass a throwaway event, not one
+            /// whose destructor matters (a `oneshot::Sender` payload would
+            /// close its channel here). Available with the `diagnostics`
+            /// feature.
             ///
             /// The value is set by the largest handler inlined into dispatch —
             /// see the `boxed` mark on `#[on]` and the `boxed-all` feature for

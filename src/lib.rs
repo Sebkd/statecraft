@@ -70,13 +70,17 @@
 //!
 //! The handler's future moves to the heap and the arm holds a pointer. For a
 //! handler holding two 512 KiB locals across awaits, that takes the `apply`
-//! future from ~1 MiB to 96 bytes — a guarantee, since coroutine sizes are
-//! fixed before optimisation — and the smallest stack a spawned FSM runs on
-//! from 4 MiB to 1 MiB in release. The second figure is an improvement rather
-//! than a guarantee: Rust has no in-place construction, so `Box::pin(fut)`
-//! still builds `fut` before moving it to the heap. Marking removes the
-//! compounding through dispatch and the task allocation, not the handler's own
-//! footprint.
+//! future from ~1 MiB to 96 bytes. That much is a guarantee: coroutine sizes
+//! are fixed before optimisation, so it holds in every profile.
+//!
+//! What it buys on the stack is an improvement, not a guarantee. Rust has no
+//! in-place construction, so `Box::pin(fut)` still builds `fut` before moving
+//! it to the heap; marking removes the compounding through dispatch and the
+//! task allocation, not the handler's own footprint. For that same handler the
+//! smallest stack a spawned FSM runs on goes from 4 MiB to 1 MiB in release and
+//! from 16 MiB to 4 MiB in debug — while an owned FSM in release gains nothing,
+//! the optimiser having built the unmarked future in place as well. Size
+//! threads from your own measurement; see the README for the full table.
 //!
 //! It costs one allocation per transition of that kind — nothing next to the
 //! I/O such a handler already does, but enough to matter for a trivial

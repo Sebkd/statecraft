@@ -245,35 +245,46 @@ What that buys, for a handler holding two 512 KiB locals across awaits:
 size of the apply future
   transition unmarked : 1 048 688 B
   transition marked   :        96 B
-
-smallest thread stack a spawned FSM runs on (release)
-  transition unmarked : 4 MiB
-  transition marked   : 1 MiB
 ```
 
-The first number is the guarantee: the handler is no longer inlined into
-dispatch, so `apply`'s future — and the task allocation holding it — stops
-growing with handler bodies, and the handler is not kept on the stack across
-awaits.
+That is the guarantee, and it holds in every profile: coroutine sizes are fixed
+before optimisation. The handler is no longer inlined into dispatch, so `apply`'s
+future — and the task allocation holding it — stops growing with handler bodies,
+and the handler is not kept on the stack across awaits.
 
-The second is an improvement, not a guarantee. Rust has no in-place
-construction, so `Box::pin(fut)` still builds `fut` before moving it to the
-heap, and that construction may touch the stack. Marking removes the
-compounding, not the handler's own footprint. Debug builds fare worse (nothing
-is elided): 32 MiB unmarked versus 8 MiB marked, same handler.
+The stack is a softer story. Rust has no in-place construction, so
+`Box::pin(fut)` still builds `fut` before moving it to the heap, and that
+construction may touch the stack. Marking removes the compounding, not the
+handler's own footprint — smallest thread stack the same machine runs on:
+
+| profile | spawned, unmarked | spawned, marked | owned, unmarked | owned, marked |
+|---------|-------------------|-----------------|-----------------|---------------|
+| release | 4 MiB             | 1 MiB           | 1 MiB           | 1 MiB         |
+| debug   | 16 MiB            | 4 MiB           | 16 MiB          | 2 MiB         |
+
+Read the release/owned column before sizing anything: there the mark buys
+nothing, because the optimiser builds the unmarked future in place too. Size
+threads from your own measurement, not from this table — and with
+`diagnostics` enabled, assert the future size in a test, which is the part that
+does not move.
 
 The mark costs one allocation per transition of that kind. Against the I/O such
 a handler already does that is nothing; against a trivial in-memory transition
 in a hot loop it is roughly 3x, which is why it is opt-in rather than automatic:
 
 ```text
-cost of a trivial transition sharing the machine
-  default policy, transition not marked :  6.8 ns
-  boxed-all, every transition boxed     : 18.6 ns
+cost of a trivial transition sharing the machine (release)
+  default policy, trivial transition inlined : ~7 ns
+  boxed-all, trivial transition boxed        : ~18 ns
 ```
 
-Reproduce the sizes and timings with
-`cargo run --release --features diagnostics --example stack_frame`.
+Reproduce all of it — the example prints the figures for whichever policy it was
+built with, so it takes one run per policy:
+
+```sh
+cargo run --release --features diagnostics --example stack_frame
+cargo run --release --features diagnostics,boxed-all --example stack_frame
+```
 
 To box every transition instead of marking them one by one, enable the
 `boxed-all` feature. It is additive and semantics-preserving — it changes only

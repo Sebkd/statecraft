@@ -22,12 +22,19 @@
 //!   commonly built in place, and — for this shape — so is the *unboxed*
 //!   future, which is why release does not separate the two cases at all.
 //!
-//! Measured here, handler holding two 512 KiB locals across suspends:
+//! Measured on the path these tests drive — owned mode, the `apply` future
+//! handed straight to `block_on` — with a handler holding two 512 KiB locals
+//! across suspends:
 //!
 //! | profile | boxed | inlined |
 //! |---------|-------|---------|
 //! | debug   | 2 MiB | 16 MiB  |
-//! | release | 2 MiB | 2 MiB   |
+//! | release | 1 MiB | 1 MiB   |
+//!
+//! A spawned FSM sits one future deeper and costs more: 4 MiB boxed against
+//! 16 MiB inlined in debug, 1 MiB against 4 MiB in release. Release separates
+//! the two cases there but not here, which is the same point from the other
+//! side — what boxing buys on the stack depends on codegen.
 //!
 //! So: run these with `cargo test --test dispatch_stack -- --ignored` in a
 //! **debug** build, where the separation is stark. What boxing guarantees
@@ -119,15 +126,29 @@ fn drive_within_budget<F: FnOnce() + Send + 'static>(body: F) {
         .unwrap();
 }
 
-/// Re-run this test binary with the marker set; report whether the child
-/// survived.
-fn child_survives(test_name: &str) -> bool {
+/// Re-run this test binary with the marker set and capture what happened.
+fn run_child(test_name: &str) -> std::process::Output {
     Command::new(std::env::current_exe().unwrap())
         .args([test_name, "--exact", "--ignored", "--test-threads=1"])
         .env(CHILD, "1")
-        .status()
+        .output()
         .unwrap()
-        .success()
+}
+
+/// Did the child die *of a stack overflow*, as opposed to any other failure?
+///
+/// Only the negative test needs this, and that test is compiled out under
+/// `boxed-all` (no unboxed transition to compare against), so gate it the same
+/// way rather than leave dead code behind.
+///
+/// Exit status alone would not tell us: a panic — `apply` regressing to `Err`,
+/// say — also exits non-zero, and would let the negative test below pass while
+/// proving nothing. The runtime announces this particular death, so match on
+/// that. (Observed: the message on stderr, then `abort`, so status 134.)
+#[cfg(not(feature = "boxed-all"))]
+fn overflowed_the_stack(out: &std::process::Output) -> bool {
+    !out.status.success()
+        && String::from_utf8_lossy(&out.stderr).contains("has overflowed its stack")
 }
 
 #[test]
@@ -141,9 +162,11 @@ fn boxed_handler_fits_the_budget() {
         });
         return;
     }
+    let out = run_child("boxed_handler_fits_the_budget");
     assert!(
-        child_survives("boxed_handler_fits_the_budget"),
-        "a boxed handler overflowed a {BUDGET} byte stack",
+        out.status.success(),
+        "a boxed handler failed inside a {BUDGET} byte stack: {}",
+        String::from_utf8_lossy(&out.stderr),
     );
 }
 
@@ -162,9 +185,13 @@ fn inlined_handler_overflows_the_budget() {
         });
         return;
     }
+    let out = run_child("inlined_handler_overflows_the_budget");
     assert!(
-        !child_survives("inlined_handler_overflows_the_budget"),
-        "an inlined handler unexpectedly fit in a {BUDGET} byte stack; \
-         in a release build this is expected — see the module docs",
+        overflowed_the_stack(&out),
+        "expected an inlined handler to overflow a {BUDGET} byte stack, but the \
+         child ended as {} — in a release build fitting is expected, see the \
+         module docs; stderr: {}",
+        out.status,
+        String::from_utf8_lossy(&out.stderr),
     );
 }
