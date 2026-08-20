@@ -43,10 +43,54 @@
 //! - **`public-emit`** (default off): makes the generated `emit` /
 //!   `emit_replace` methods `pub`. By default they are module-private, callable
 //!   only from handlers.
+//! - **`boxed-all`** (default off): box every transition's handler future,
+//!   not just the marked ones. See "Stack cost" below.
+//! - **`diagnostics`** (default off): generates `apply_future_size`, so a test
+//!   can assert the dispatch frame stays bounded.
 //! - **`#[fsm(channel_size = N)]`**: capacity of the spawned event channel
 //!   (default 64; Tokio adapter only).
 //! - **`STATECRAFT_CASCADE_LIMIT`** (compile-time env): caps self-emit cascades
 //!   per `apply` (default 10_000); `0` disables the limit.
+//!
+//! ## Stack cost
+//!
+//! `apply` awaits the handler, so the handler's future is part of `apply`'s
+//! future, which is in turn part of a spawned task's future. Coroutines are
+//! sized by their largest arm, which means the cost is set by the **single
+//! heaviest handler**, not by the number of transitions — and adding one
+//! handler that holds large values across `await` raises it for the whole
+//! machine.
+//!
+//! Mark such a transition `boxed` to keep it out of the dispatch coroutine:
+//!
+//! ```ignore
+//! #[on(state = Running, event = Timeout, next = Done, boxed)]
+//! async fn on_timeout(&mut self) { /* database, HTTP, retries … */ }
+//! ```
+//!
+//! The handler's future moves to the heap and the arm holds a pointer. For a
+//! handler holding two 512 KiB locals across awaits, that takes the `apply`
+//! future from ~1 MiB to 96 bytes. That much is a guarantee: coroutine sizes
+//! are fixed before optimisation, so it holds in every profile.
+//!
+//! What it buys on the stack is an improvement, not a guarantee. Rust has no
+//! in-place construction, so `Box::pin(fut)` still builds `fut` before moving
+//! it to the heap; marking removes the compounding through dispatch and the
+//! task allocation, not the handler's own footprint. For that same handler the
+//! smallest stack a spawned FSM runs on goes from 4 MiB to 1 MiB in release and
+//! from 16 MiB to 4 MiB in debug — while an owned FSM in release gains nothing,
+//! the optimiser having built the unmarked future in place as well. Size
+//! threads from your own measurement; see the README for the full table.
+//!
+//! It costs one allocation per transition of that kind — nothing next to the
+//! I/O such a handler already does, but enough to matter for a trivial
+//! in-memory transition in a hot loop, which is why marking is opt-in. To box
+//! every transition instead, enable the `boxed-all` feature; it is additive and
+//! changes only where handler futures live, never what the FSM does.
+//!
+//! With the `diagnostics` feature, `apply_future_size` reports the actual size,
+//! so the bound can be asserted in a test rather than discovered as a stack
+//! overflow in production.
 //!
 //! ## Fallible handlers
 //!

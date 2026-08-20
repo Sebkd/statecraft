@@ -4,6 +4,7 @@ Cargo.lock
 **/*.rs.bk
 *.pdb
 
-# Внутренние рабочие заметки — наружу в git не идут
-/docs/
-/DESIGN.md
+# OpenSpec toolchain — локальная установка, наружу не идёт
+/vendor/
+/.cursor/skills/
+/.cursor/commands/

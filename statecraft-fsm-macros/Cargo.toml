@@ -19,6 +19,12 @@ public-emit = []
 # Enabled via the `statecraft` facade's `tokio` feature; generates the Tokio
 # adapter (spawn/Handle/watch).
 tokio = []
+# Enabled via the `statecraft` facade's `boxed-all` feature; boxes every
+# transition's handler future, not just the ones marked `#[on(.., boxed)]`.
+boxed-all = []
+# Enabled via the `statecraft` facade's `diagnostics` feature; generates
+# `apply_future_size`.
+diagnostics = []
 
 [dependencies]
 proc-macro2 = "1.0"

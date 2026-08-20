@@ -19,7 +19,7 @@ plain, explicit Rust.
 
 ```toml
 [dependencies]
-statecraft-fsm = "0.1"
+statecraft-fsm = "0.2"
 ```
 
 The crate is published as `statecraft-fsm`; in code it is imported as
@@ -220,12 +220,88 @@ join.await?;
   (default 64).
 - `Context` and the payload types must be `Send + 'static`.
 
+## Stack cost of a transition
+
+`apply` awaits the handler, so the handler's future is part of `apply`'s future,
+which is in turn part of the spawned task's future. Coroutines are sized by their
+largest arm — so the cost is set by the **single heaviest handler**, not by the
+number of transitions. Add one handler that holds large values across `await`
+(a database row, an HTTP response, a buffer) and the whole machine gets more
+expensive.
+
+Mark such a transition `boxed`. Its future moves to the heap; the dispatch arm
+holds a pointer:
+
+```rust
+#[on(state = Running, event = Timeout, next = Done, boxed)]
+async fn on_timeout(&mut self) {
+    // database, HTTP, retries — the future for all of this now lives on the heap
+}
+```
+
+What that buys, for a handler holding two 512 KiB locals across awaits:
+
+```text
+size of the apply future
+  transition unmarked : 1 048 688 B
+  transition marked   :        96 B
+```
+
+That is the guarantee, and it holds in every profile: coroutine sizes are fixed
+before optimisation. The handler is no longer inlined into dispatch, so `apply`'s
+future — and the task allocation holding it — stops growing with handler bodies,
+and the handler is not kept on the stack across awaits.
+
+The stack is a softer story. Rust has no in-place construction, so
+`Box::pin(fut)` still builds `fut` before moving it to the heap, and that
+construction may touch the stack. Marking removes the compounding, not the
+handler's own footprint — smallest thread stack the same machine runs on:
+
+| profile | spawned, unmarked | spawned, marked | owned, unmarked | owned, marked |
+|---------|-------------------|-----------------|-----------------|---------------|
+| release | 4 MiB             | 1 MiB           | 1 MiB           | 1 MiB         |
+| debug   | 16 MiB            | 4 MiB           | 16 MiB          | 2 MiB         |
+
+Read the release/owned column before sizing anything: there the mark buys
+nothing, because the optimiser builds the unmarked future in place too. Size
+threads from your own measurement, not from this table — and with
+`diagnostics` enabled, assert the future size in a test, which is the part that
+does not move.
+
+The mark costs one allocation per transition of that kind. Against the I/O such
+a handler already does that is nothing; against a trivial in-memory transition
+in a hot loop it is roughly 3x, which is why it is opt-in rather than automatic:
+
+```text
+cost of a trivial transition sharing the machine (release)
+  default policy, trivial transition inlined : ~7 ns
+  boxed-all, trivial transition boxed        : ~18 ns
+```
+
+Reproduce all of it — the example prints the figures for whichever policy it was
+built with, so it takes one run per policy:
+
+```sh
+cargo run --release --features diagnostics --example stack_frame
+cargo run --release --features diagnostics,boxed-all --example stack_frame
+```
+
+To box every transition instead of marking them one by one, enable the
+`boxed-all` feature. It is additive and semantics-preserving — it changes only
+where handler futures live, never what the FSM does — so a dependency enabling
+it can never break your build, though it will make your unmarked transitions
+allocate.
+
 ## Features & configuration
 
 - `tokio` (default off): the Tokio adapter (`spawn`/`Handle`/`watch`). Without
   it, only the owned core is compiled and `tokio` is not a dependency.
 - `public-emit` (default off): makes the generated `emit` method `pub`. By
   default it is module-private, callable only from handlers.
+- `boxed-all` (default off): box every transition's handler future, not just the
+  ones marked `#[on(.., boxed)]`. See [Stack cost](#stack-cost-of-a-transition).
+- `diagnostics` (default off): generates `apply_future_size`, so a test can
+  assert the dispatch frame stays bounded instead of finding out in production.
 - `#[fsm(channel_size = N)]`: capacity of the spawned event channel (default 64).
 - `STATECRAFT_CASCADE_LIMIT` (compile-time env): overrides the self-emit cascade
   limit. `0` disables the limit (unbounded cascades).
@@ -240,13 +316,14 @@ Runnable examples live in [`examples/`](./examples):
   timer feeding a channel). `cargo run --example driven_by_channel`
 - **`stream_file`** — drive an FSM from a streamed file, with streaming I/O
   inside handlers. `cargo run --example stream_file`
+- **`stack_frame`** — what marking a transition `boxed` costs and what it buys,
+  measured at runtime.
+  `cargo run --release --features diagnostics --example stack_frame`
 - **`axum_fsm/`** — a registry (`HashMap`) of spawned FSMs, one per id, driven
   over an [axum](https://github.com/tokio-rs/axum) HTTP API. Keeps each
   `JoinHandle` for controlled shutdown — graceful `shutdown` + await with a
   hard `shutdown_now` timeout fallback (`DELETE` stops one, Ctrl-C drains all) —
   and shows multi-target branching. `cd examples/axum_fsm && cargo run`
-
-See [CONTEXT.md](./CONTEXT.md) for a map of the codebase.
 
 ## Acknowledgements
 

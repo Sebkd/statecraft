@@ -1,0 +1,5 @@
+error: unsupported #[on] key (expected state, event, next, boxed)
+  --> tests/ui/unknown_on_key.rs:10:49
+   |
+10 |     #[on(state = Idle, event = Go, next = Done, boxxed)]
+   |                                                 ^^^^^^

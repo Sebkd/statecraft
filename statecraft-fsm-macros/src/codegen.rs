@@ -94,6 +94,11 @@ pub(crate) fn expand(
         }
     });
 
+    // Wholesale heap-placement policy (feature `boxed-all`, forwarded from the
+    // facade). Evaluated when this macro crate is compiled; per-transition
+    // `#[on(.., boxed)]` marks stay honoured either way.
+    let boxed_all = cfg!(feature = "boxed-all");
+
     // apply arms. Single-target handlers set the state directly; branching
     // handlers map the returned target enum onto a state. A fallible handler
     // has its error wrapped into `ApplyError::Handler` via `?`.
@@ -107,13 +112,24 @@ pub(crate) fn expand(
         } else {
             (quote! { #event_enum::#ev }, quote! {})
         };
-        // `self.#method(<arg>).await`. Fallible handlers wrap the error into
+        // Invoking the handler. `boxed` (per transition) or the `boxed-all`
+        // feature (every transition) puts the handler's future on the heap, so
+        // the arm holds a pointer instead of the whole future. Without it the
+        // future is inlined into the dispatch coroutine, and since the
+        // coroutine is sized by its largest arm, one heavy handler sets the
+        // stack cost of the entire machine.
+        let invoke = if h.on.boxed || boxed_all {
+            quote_spanned! {h.span=> ::std::boxed::Box::pin(self.#method(#call_arg)) }
+        } else {
+            quote_spanned! {h.span=> self.#method(#call_arg) }
+        };
+        // `<invoke>.await`. Fallible handlers wrap the error into
         // `ApplyError::Handler` explicitly (not via `?`/`From`), spanned at the
         // handler, so a wrong error type reads as a clear `mismatched types`
         // there — expected `type Error`, found the handler's error.
         let call = if h.fallible {
             quote_spanned! {h.span=>
-                match self.#method(#call_arg).await {
+                match #invoke.await {
                     ::core::result::Result::Ok(__v) => __v,
                     ::core::result::Result::Err(__e) => {
                         return ::core::result::Result::Err(
@@ -123,7 +139,7 @@ pub(crate) fn expand(
                 }
             }
         } else {
-            quote! { self.#method(#call_arg).await }
+            quote! { #invoke.await }
         };
         let set_state = if h.on.next.len() == 1 {
             let target = &h.on.next[0];
@@ -173,6 +189,32 @@ pub(crate) fn expand(
     } else {
         quote! {}
     };
+    // Diagnostics (feature `diagnostics`, forwarded from the facade): lets a
+    // consumer assert in CI that the dispatch frame stays bounded, instead of
+    // discovering a regression as a stack overflow in production.
+    let diagnostics_items = if cfg!(feature = "diagnostics") {
+        quote! {
+            /// Size in bytes of the future returned by [`Self::apply`], for the
+            /// given event.
+            ///
+            /// The future is created and dropped without ever being polled, so
+            /// no handler runs. The event is moved into it either way, so a
+            /// payload's `Drop` does run — pass a throwaway event, not one
+            /// whose destructor matters (a `oneshot::Sender` payload would
+            /// close its channel here). Available with the `diagnostics`
+            /// feature.
+            ///
+            /// The value is set by the largest handler inlined into dispatch —
+            /// see the `boxed` mark on `#[on]` and the `boxed-all` feature for
+            /// keeping it bounded.
+            pub fn apply_future_size(&mut self, event: #event_enum) -> usize {
+                ::core::mem::size_of_val(&self.apply(event))
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let fsm_name_str = fsm_name.to_string();
 
     // The event enum carries only `Debug` (payloads may not be Copy/Eq/Clone).
@@ -421,6 +463,8 @@ pub(crate) fn expand(
             }
 
             #adapter_impl_items
+
+            #diagnostics_items
 
             #(#cleaned)*
         }
