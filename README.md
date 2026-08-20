@@ -246,8 +246,6 @@ Runnable examples live in [`examples/`](./examples):
   hard `shutdown_now` timeout fallback (`DELETE` stops one, Ctrl-C drains all) —
   and shows multi-target branching. `cd examples/axum_fsm && cargo run`
 
-See [CONTEXT.md](./CONTEXT.md) for a map of the codebase.
-
 ## Acknowledgements
 
 `statecraft` was inspired by [tokio-fsm](https://github.com/abhishekshree/tokio-fsm)
