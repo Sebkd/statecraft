@@ -14,6 +14,10 @@ pub(crate) struct OnAttr {
     /// Payload type when the event is declared as `event = Foo(Type)`.
     pub(crate) payload: Option<Type>,
     pub(crate) next: Vec<Ident>,
+    /// `boxed` flag: place this handler's future on the heap during dispatch,
+    /// keeping it out of the dispatch stack frame. See the crate docs on the
+    /// `boxed-all` feature for the wholesale policy.
+    pub(crate) boxed: bool,
 }
 
 pub(crate) fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
@@ -21,6 +25,7 @@ pub(crate) fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
     let mut event = None;
     let mut payload: Option<Type> = None;
     let mut next: Option<Vec<Ident>> = None;
+    let mut boxed = false;
 
     attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("state") {
@@ -44,8 +49,11 @@ pub(crate) fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
             } else {
                 next = Some(vec![input.parse()?]);
             }
+        } else if meta.path.is_ident("boxed") {
+            // Flag, not a key-value pair: `#[on(.., boxed)]`.
+            boxed = true;
         } else {
-            return Err(meta.error("unsupported #[on] key (expected state, event, next)"));
+            return Err(meta.error("unsupported #[on] key (expected state, event, next, boxed)"));
         }
         Ok(())
     })?;
@@ -63,6 +71,7 @@ pub(crate) fn parse_on(attr: &Attribute) -> syn::Result<OnAttr> {
         event: event.ok_or_else(|| syn::Error::new(span, "missing #[on] key: event"))?,
         payload,
         next,
+        boxed,
     })
 }
 

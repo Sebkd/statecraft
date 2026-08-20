@@ -50,7 +50,27 @@ jobs:
       - name: Test (tokio adapter)
         run: cargo test --features tokio --test tokio_adapter
 
-      # Compile-check the optional features (public-emit, tokio).
+      # Heap-placement policy: the default (only `#[on(.., boxed)]` marks) and
+      # the wholesale one. Both need `diagnostics` for `apply_future_size`.
+      # Targeted at the test, not the workspace, for the same reason as above:
+      # these features alter generated code and the trybuild snapshots assume
+      # the default feature set.
+      - name: Test (dispatch policy, default)
+        run: cargo test --features diagnostics --test boxed_dispatch
+
+      - name: Test (dispatch policy, boxed-all)
+        run: cargo test --features diagnostics,boxed-all --test boxed_dispatch
+
+      # Ignored by default: they abort a child process on purpose. Debug build,
+      # where a boxed and an inlined handler are cleanly separated.
+      - name: Test (dispatch stack, ignored)
+        run: cargo test --test dispatch_stack -- --ignored
+
+      - name: Clippy (boxed-all + diagnostics)
+        run: cargo clippy --workspace --all-targets --features boxed-all,diagnostics -- -D warnings
+
+      # Compile-check the optional features (public-emit, tokio, boxed-all,
+      # diagnostics).
       - name: Build (all features)
         run: cargo build --workspace --all-targets --all-features
 

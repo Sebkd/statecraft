@@ -6,7 +6,7 @@ exclude = ["examples/axum_fsm"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.7"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.96.1"
 license = "MIT"
@@ -15,7 +15,7 @@ repository = "https://github.com/Sebkd/statecraft"
 readme = "README.md"
 
 [workspace.dependencies]
-statecraft-fsm-macros = { version = "0.1", path = "statecraft-fsm-macros" }
+statecraft-fsm-macros = { version = "0.2", path = "statecraft-fsm-macros" }
 
 tokio = { version = "1.52", features = ["sync", "rt", "time", "macros"] }
 tokio-util = { version = "0.7", features = ["rt"] }
@@ -53,6 +53,18 @@ public-emit = ["statecraft-fsm-macros/public-emit"]
 # Opt-in Tokio adapter: generates `spawn`/`Handle`/`watch`. The core is
 # runtime-agnostic and compiles without this feature.
 tokio = ["dep:tokio", "statecraft-fsm-macros/tokio"]
+# Wholesale heap placement: box every transition's handler future. The default
+# policy boxes only transitions marked `#[on(.., boxed)]`. Additive and
+# semantics-preserving: enabling this changes where a handler's future lives,
+# never what the FSM does.
+boxed-all = ["statecraft-fsm-macros/boxed-all"]
+# Generates `apply_future_size`, for asserting the dispatch frame stays bounded.
+diagnostics = ["statecraft-fsm-macros/diagnostics"]
+
+# Needs `apply_future_size`, hence the `diagnostics` feature.
+[[example]]
+name = "stack_frame"
+required-features = ["diagnostics"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
